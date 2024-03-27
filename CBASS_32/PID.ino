@@ -1,7 +1,7 @@
 
 
 void applyTargets() {
-  // Copy temperatures - it is not clear why we have both.  It may keep the PID values from 
+  // Copy temperatures - it is not clear why we have both.  It may keep the PID values from
   // unwanted adjustments while the RAMP_START_TEMP values are being updated and adjusted.
   for (i=0; i<NT; i++) setPoint[i] = RAMP_START_TEMP[i];
 }
@@ -24,12 +24,12 @@ void getCurrentTargets() {
   unsigned int dayMin = t.minute() + 60 * t.hour();
 
   //Apply relative time - dayMin can't go negative.
-  // Note that 
+  // Note that
   if (relativeStart) {
     if (dayMin > relativeStartTime) dayMin -= relativeStartTime;
     else dayMin = (dayMin + 24*60) - relativeStartTime;
   }
-  
+
 
   //Serial.print(" Relative start = "); Serial.println(relativeStartTime);
   //Serial.print(" Adjusted dayMin = "); Serial.println(dayMin);
@@ -46,13 +46,13 @@ void getCurrentTargets() {
 
   // Case 0: Before all points
   if (dayMin < rampMinutes[rampPos]) {
-    for (i=0; i<NT; i++) RAMP_START_TEMP[i] = (double)rampHundredths[i][0] / 100.0;    
+    for (i=0; i<NT; i++) RAMP_START_TEMP[i] = (double)rampHundredths[i][0] / 100.0;
     return;
   }
   // Case 1: Between specified points.  This is the common case when ramps are active.
   if (rampPos < rampSteps - 1) {
     if (!interpolateT) {
-      for (i=0; i<NT; i++) RAMP_START_TEMP[i] = (double)rampHundredths[i][rampPos] / 100.0;    
+      for (i=0; i<NT; i++) RAMP_START_TEMP[i] = (double)rampHundredths[i][rampPos] / 100.0;
       return;
     }
     double dayValue = (float)dayMin + t.second()/60.0;
@@ -64,10 +64,10 @@ void getCurrentTargets() {
   }
   // Case 2: past the last step, still on the same day.
   if (rampPos == rampSteps - 1 && dayMin >= rampMinutes[rampPos]) {
-    for (i=0; i<NT; i++) RAMP_START_TEMP[i] = (double)rampHundredths[i][rampPos] / 100.0;   
+    for (i=0; i<NT; i++) RAMP_START_TEMP[i] = (double)rampHundredths[i][rampPos] / 100.0;
     return;
   }
-  printBoth("==ERROR== no current target found at minutes = "); 
+  printBoth("==ERROR== no current target found at minutes = ");
   printBoth(dayMin);
   printBoth(" relativeStartTime = ");
   printBoth(relativeStartTime);

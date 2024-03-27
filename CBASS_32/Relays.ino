@@ -23,7 +23,7 @@ void RelaysInit()
  
   // Shift Register
   pinMode(LATCH_PIN, OUTPUT);
-  pinMode(DATA_PIN, OUTPUT);  
+  pinMode(DATA_PIN, OUTPUT);
   pinMode(CLOCK_PIN, OUTPUT);
   digitalWrite(LATCH_PIN, HIGH);
   shiftRegByte = 0;
@@ -49,7 +49,7 @@ void relayTest() {
         tft.fillRect(0, lineY, TFT_WIDTH, LINEHEIGHT3, BLACK);
     }
     tft.setCursor(0, lineY);
-    
+
     // Test one heater relay
     tft.print(2 * i + 1); tft.print(". T"); tft.print(i + 1); tft.print("Heatr");
     Serial.print(2 * i + 1); Serial.print(". T"); Serial.print(i + 1); Serial.println("Heatr");
@@ -60,7 +60,7 @@ void relayTest() {
     digitalWrite(HeaterRelay[i], RELAY_OFF);
     bitClear(shiftRegByte, HeaterRelayShift[i]);  updateShiftRegister();
 
-    delay(100); // A brief delay so you can hear the "off" relay action separately from the following "on"    
+    delay(100); // A brief delay so you can hear the "off" relay action separately from the following "on"
     // Test one chiller relay
     lineY = (2 * i + 1) * LINEHEIGHT3 - shiftUp;
     if (shiftUp > 0) {
@@ -78,7 +78,7 @@ void relayTest() {
     digitalWrite(ChillRelay[i], RELAY_OFF);
     bitClear(shiftRegByte, ChillRelayShift[i]);  updateShiftRegister();
 
-    delay(100); // A brief delay so you can hear the "off" relay action separately from the following "on"    
+    delay(100); // A brief delay so you can hear the "off" relay action separately from the following "on"
   }
 
 #ifdef COLDWATER
@@ -125,7 +125,7 @@ void updateRelays() {
         strcpy(RelayStateStr[i], "OFF");
       }
     } else { //Heating
-      if (tempOutput[i] > 0.0) {  
+      if (tempOutput[i] > 0.0) {
         if (tempInput[i] > setPoint[i] - chillOffset) {
           digitalWrite(HeaterRelay[i], RELAY_ON);
           digitalWrite(ChillRelay[i], RELAY_ON);
@@ -188,21 +188,21 @@ void updateShiftRegister()
 void MYshiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val)
 {
   uint8_t i;
-  
+
   digitalWrite(clockPin, LOW);
 
   for (i = 0; i < 8; i++)  {
     if (bitOrder == LSBFIRST) {
       digitalWrite(dataPin, val & 1);
       val >>= 1;
-    } else {  
+    } else {
       digitalWrite(dataPin, (val & 128) != 0);
       val <<= 1;
     }
-      
+
     delayMicroseconds(10); 
     digitalWrite(clockPin, HIGH);
     delayMicroseconds(10); 
-    digitalWrite(clockPin, LOW);    
+    digitalWrite(clockPin, LOW);
   }
 }

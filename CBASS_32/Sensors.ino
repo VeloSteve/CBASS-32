@@ -60,7 +60,7 @@ void sensorsInit()
     for (i=0; i < dc; i++) {
       for (j = 0; j < 8; j++) a[j] = tt[i][j];  // Copy current address to a
       setFound = findSet(a);                 // Get its set number, or -1
-      allFound[i] = setFound;                 
+      allFound[i] = setFound;
       if (setFound < 0) {                    // If no set, copy to a list for user action.
         for (j = 0; j < 8; j++) needsSettingsEntry[extras][j] = a[j];
         extras++;
@@ -219,7 +219,7 @@ void printResolution(DeviceAddress deviceAddress)
 {
   Serial.print("Resolution: ");
   Serial.print(sensors.getResolution(deviceAddress));
-  Serial.println();    
+  Serial.println();
 }
 
 // main function to print information about a device

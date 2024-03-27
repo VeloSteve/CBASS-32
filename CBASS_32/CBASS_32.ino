@@ -135,7 +135,7 @@ File32 logFile;
 boolean logPaused = false;
 unsigned long startPause = 0;
 // Formerly "printDate" No spaces or commas.  Otherwise just something that gets logged.
-String logLabel = "CBASS-32"; 
+String logLabel = "CBASS-32";
 
 // Storage for the characters of keyword while reading Settings.ini.
 const byte BUFMAX = 16; // INTERP is the longest keyword for now.
@@ -152,7 +152,7 @@ DeviceAddress thermometer[NT];
 unsigned int rampMinutes[MAX_RAMP_STEPS];  // Time for each ramp step.
 int rampHundredths[NT][MAX_RAMP_STEPS];  // Temperatures in 1/100 degree, because is half the storage of a float.
 short rampSteps = 0;  // Actual defined steps, <= MAX_RAMP_STEPS
-boolean interpolateT = true; // If true, interpolate between ramp points, otherwise step.  
+boolean interpolateT = true; // If true, interpolate between ramp points, otherwise step.
 boolean relativeStart = false;  // Start from midnight (default) or a specified time.
 unsigned int relativeStartTime;  // Start time in minutes from midnight
 #ifdef COLDWATER
@@ -212,7 +212,7 @@ void setup()
   }
   // Start "reset if hung" watchdog timer. 8 seconds is the longest available interval.
   esp_task_wdt_init(WDT_TIMEOUT, true);
-  esp_task_wdt_add(NULL);  
+  esp_task_wdt_add(NULL);
 
   // ***** INITALIZE OUTPUT *****`
   Serial.begin(38400);         // 9600 traditionally. 38400 saves a bit of time
@@ -222,7 +222,7 @@ void setup()
   startDisplay();             // TFT display
   Serial.println("\n===== Booting CBASS-32 =====");
   Serial.printf("Running on core %d.\n", xPortGetCoreID());
-  
+
   clockInit();  // Keep this before any use of the clock for logging or ramps.
   bootTime = gettime();
 
@@ -252,7 +252,7 @@ void setup()
   #endif
   esp_task_wdt_reset();
   rampOffsets();  // This does not need repeating in the main loop.
-  
+
   // Get the target temperatures as will be done in the loop.
   getCurrentTargets();
   applyTargets();
@@ -277,7 +277,7 @@ void setup()
   // Clear the LCD screen before loop() because we may not fully clear it in the loop.
   tft.fillScreen(BLACK);
 
-  // These timers use cumulative time, so start them at a current time, rather than zero.  
+  // These timers use cumulative time, so start them at a current time, rather than zero.
   // Subtract the repeat interval so they activate on the first pass.
   SERIALt = millis() - SERIALwindow;
   LCDt = millis() - LCDwindow;
@@ -297,7 +297,7 @@ void setup()
  * Within each loop most of the time is in 4 areas: 479 ms in requestTemperatures, 193 ms getting and adjusting
  * temperatures, 199 ms logging (to serial monitor and SD card), 183 ms updating the LCD display.
  * On loops when target values are updated, 3 ms is spent doing that work  and 113 ms printing the result.
- * 
+ *
  * This loop time is effective for thermal control.  Changes to the code which affect the loop time substatially
  * should be followed by physical testing of temperature histories.
  */
@@ -321,7 +321,7 @@ void loop()
 #ifdef COLDWATER
   // Similar to getCurrentTargets/applyTargets, but for lighting.
   getLightState();
-#endif    
+#endif
 
   // Remove the ifdef if we have other reasons to save the graphing file.  It's just a less
   // detailed version of the main log.
@@ -332,7 +332,7 @@ void loop()
     esp_task_wdt_reset();
     GRAPHt += GRAPHwindow;
   }
-  
+
   // ***** UPDATE PIDs *****
   for (i=0; i<NT; i++) pids[i].Compute();
 
@@ -366,7 +366,7 @@ void SerialSend()
 {
   //WARNING: the last argument to open() must be _WRITE for Mega, but _APPEND for ESP32. New: O_WRONLY | O_CREAT for SdFat.
 
-  logFile = SDF.open("/LOG.txt",  O_WRONLY | O_CREAT | O_APPEND);  
+  logFile = SDF.open("/LOG.txt",  O_WRONLY | O_CREAT | O_APPEND);
   //uint64_t lfs = logFile.size();
 
   if (!logFile) {
@@ -405,10 +405,10 @@ void SerialSend()
 
 /**
  * Typically this will be called once from setup() with no logFile open
- * and then periodically during loop().  Having the code here keeps 
+ * and then periodically during loop().  Having the code here keeps
  * the two versions in sync.
  * This assumes 5 data items per tank after the date and time information.
- *     
+ *
  * This originally used printBoth for everything.  Not that it really matters
  * but this printf approach is about 4 times faster.  Unfortunately it means
  * either a loop with "ifs" inside for the log file, or one "if" and two loops.
@@ -441,7 +441,7 @@ void SerialReceive()
 }
 
 void setupMessages() {
-  
+
   tft.fillScreen(BLACK);
   tft.setTextSize(3);
   tft.setCursor(0, 0);  // remember that the original LCD counts characters.  This counts pixels.
@@ -455,7 +455,7 @@ void setupMessages() {
   tft.print("Time: "); tft.print(gettime());
   delay(3000);
   esp_task_wdt_reset();
- 
+
   tft.setCursor(0, LINEHEIGHT3*5);
   tft.print(" 5s Pause...");
   Serial.println();
@@ -469,7 +469,7 @@ void setupMessages() {
   Serial.println();
 }
 
-/** 
+/**
  * Tell the sensors to get fresh temperatures and then store them after
  * applying any corrections we may have in place.
  */

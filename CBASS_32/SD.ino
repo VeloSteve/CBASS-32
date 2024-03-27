@@ -404,7 +404,7 @@ void printAsHM(unsigned int t) {
 /**
    Read the content of LightPln.ini  Lines can be comments or an on or off time.
    All tanks switch together, so there is only one on or off per line.
-   It is assumed that we want the last state specified, wrapping to the previous day if needed.  In the 
+   It is assumed that we want the last state specified, wrapping to the previous day if needed.  In the
    example below, if the system starts at 6 AM, lights should be off.
 
   // A comment - must start at the beginning of a line

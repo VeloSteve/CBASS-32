@@ -1,6 +1,6 @@
 /*
  * The Server.ino file is meant to contain the definitions of all the web pages and
- * other server requests needed by CBASS-32.  
+ * other server requests needed by CBASS-32.
  The initial strategy will be
  * 1) Define each file location or page name in a compact "server.on()" or "server.serveStatic()" call.
  * 2) Keep large static files on the SD card in /htdocs
@@ -8,7 +8,7 @@
  * 4) Most pages will have a static header and footer and a dynamic body.
  * 5) The dynamic bodies will be defined in calls to "processor()"
  * 6) Pages will normally use a response object in addition to the request object allowing
- *    for headers and parts of the response to be added sequentially. 
+ *    for headers and parts of the response to be added sequentially.
  * 7) Another convention: variables set to be picked up by processor() will start with "p_"
  */
 
@@ -75,7 +75,7 @@ size_t logChunks(uint8_t *buffer, size_t maxLen) {
  */
 
 /**
- * Return parts of a file. Each chunk is placed in the buffer, and 
+ * Return parts of a file. Each chunk is placed in the buffer, and
  * a static variable records the position of the next byte to read.
  * TODO: Verify that the correct thing happens if two users request
  * the same file (or different ones for that matter) simultaneously.
@@ -110,13 +110,13 @@ size_t fileChunks(uint8_t *buffer, size_t maxLen, const char *fName) {
     fileChunkPos += bytesRead;
   }
   return bytesRead;
-} 
+}
 
 
 /**
- * This is the main function which sets up handling of requests.  It uses the 
+ * This is the main function which sets up handling of requests.  It uses the
  * globally-defined server variable to access methods of an AsyncWebServer.
- * Once defined these will be activated behind the scenes as 
+ * Once defined these will be activated behind the scenes as
  * requests come in.
  */
 void defineWebCallbacks() {
@@ -132,7 +132,7 @@ void defineWebCallbacks() {
   });
 
   /**
-   * While just "/" gets the root page, anything else not defined explicitly will be 
+   * While just "/" gets the root page, anything else not defined explicitly will be
    * looked for in /htdocs and served without modification.  This will typically be
    * javascript or CSS, since we want to process the HTML pages.
    * Speed: the plotly.js file served from SPIFFS takes 230 to 500ms.  Sending from SD
@@ -226,7 +226,7 @@ void defineWebCallbacks() {
    * 1620 bytes gets broken pretty close to the end.  Test with that much even though typical CBASS
    * work will use less.  Maybe this is based on the typical 1500 byte ethernet packet?
    *
-   * 
+   *
    * Note that this does not return a web page, just a message, so the usual HTML parts are omitted.
    */
   server.onRequestBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
@@ -390,8 +390,8 @@ void defineWebCallbacks() {
    * With the word and reset=true it does the reset.
    *
    * Notes:
-   * Replaceable part of page is 
-   * - Description of the action and the magic word box, in the basic state 
+   * Replaceable part of page is
+   * - Description of the action and the magic word box, in the basic state
    * - Same with an error message if the magic word is wrong.
    * - Failure message an no button if SD modification fails.
    * - Success message with suggestion to go to the edit/management page on success.  (or just go to the managment page?)
@@ -433,7 +433,7 @@ void defineWebCallbacks() {
     request->send_P(200, "text/html", iniResetPage, processor);
   });
 
-  /** 
+  /**
    * Note that his sends a file for download, so it doesn't have html code processing.
    */
 //  Chunked response - my function will provide the chunks using the SdFat library.
@@ -544,7 +544,7 @@ void defineWebCallbacks() {
           SDF.mkdir(nD);
           fullPath = "/" + nD;
         } else if (dC == "/") {
-          fullPath = "/"; 
+          fullPath = "/";
         } else {
           // change to the selected directory.  It should exist since it came from the dropdown,
           // but check.
@@ -818,7 +818,7 @@ char *getFileName(File32 f) {
 }
 
 /**
- * This was originally a form, thus some of the names. Now javascript is used to 
+ * This was originally a form, thus some of the names. Now javascript is used to
  * collect information from the table and other entry points and post it.
  */
 void sendRampForm(AsyncResponseStream *rs) {
@@ -913,9 +913,9 @@ void sendAsHM(unsigned int t, AsyncResponseStream *rs) {
 }
 
 
-/** 
+/**
  * This receives the data from a ramp plan update request.  It is parsed and validated,
- * and if that passes the Settings.ini file (after backup) is updated and the 
+ * and if that passes the Settings.ini file (after backup) is updated and the
  * running ramp is adjusted to match.
  *
  * The incoming data looks like:
@@ -1125,13 +1125,13 @@ String directoryInput() {
       Serial.println(fnBuffer);
       sprintf(outputBuffer, "<option value=\"%s\">%s</option>\n", fnBuffer, fnBuffer);
       rString += String(outputBuffer);
-    } 
+    }
 
     // SD.h way: file = root.openNextFile();
     file.close();  // Even though we call a method on file onec each pass, examples close it each time.
   }
 
-  
+
 
   rString += "<option value=\"--new--\">new directory</option></select>\n<br><label for=\"newdir\">New directory:</label><input type=\"text\" id=\"newdir\" name=\"newdir\" disabled><br>\n";
 
@@ -1154,7 +1154,7 @@ String showDateTime() {
  * This defines the replacements for any text between ~ characters in web templates.
  * This if/else structure isn't very efficient, but we don't make tons of calls and
  * it can help to put the most-used replacements first.
- * 
+ *
  * NOTE: the default delimiter for substitution strings is "%", but that is too
  * commonly used.  "@" was used until needed for CSS.  Now we have "~" in WebResponseImpl.h.
  */

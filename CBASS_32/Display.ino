@@ -105,7 +105,7 @@ void displayTemperatureStatusBold() {
     }
 
     // Add time and IP address in the smallest font at the bottom of the screen.
-    
+
     tft.setCursor(1, TFT_HEIGHT-8);
     tft.setTextSize(0);
     tft.setTextColor(GREEN);
@@ -118,7 +118,7 @@ void displayTemperatureStatusBold() {
     tft.print("  Started: ");
     tft.print(bootTime.c_str());
     tft.setTextColor(WHITE);
-     
+ 
     // To add diagnostics after the temperature lines:
     // tft.fillRect(LINEHEIGHT*2, LINEHEIGHT3*5, TFT_WIDTH-LINEHEIGHT3*4, LINEHEIGHT3, BLACK);
     // tft.setCursor(0, LINEHEIGHT3*5);
@@ -177,7 +177,7 @@ void displayTemperatureStatusBold() {
     canvasNarrow.print("  Started: ");
     canvasNarrow.print(bootTime.c_str());
     tft.drawBitmap(0, TFT_HEIGHT-8, canvasNarrow.getBuffer(), TFT_WIDTH, 8, GREEN, BLACK);
-    
+
     // To add diagnostics after the temperature lines:
     // tft.fillRect(LINEHEIGHT*2, LINEHEIGHT3*5, TFT_WIDTH-LINEHEIGHT3*4, LINEHEIGHT3, BLACK);
     // tft.setCursor(0, LINEHEIGHT3*5);

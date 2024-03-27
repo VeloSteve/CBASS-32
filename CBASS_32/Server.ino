@@ -675,7 +675,7 @@ String rollLog() {
   //TODO HERE - this works, but could use some error checking.  Also, only an empty page is returned!
 
   // Ensure that the next logging call will include a header.
-  SerialOutCount = serialOutPeriod + 1;
+  SerialOutCount = serialHeaderPeriod + 1;
   return result;
 }
 
@@ -684,7 +684,7 @@ String rollLog() {
  * {"NT":[4],"timeval":[46],"CBASStod":["19:39:50"],"tempList":[0.0,0.0,0.0,0.0],"targetList":[32.0,27.0,36.0,38.0]}
  */
 void sendXY(AsyncResponseStream *rs) {
-  // Temp checks fill this: TempInput[]
+  // Temp checks fill this: tempInput[]
   int tv = (int)(millis() / 1000);
   rs->printf("{\"NT\":[%d],", NT);
   rs->printf("\"timeval\":[%d],", tv);
@@ -693,13 +693,13 @@ void sendXY(AsyncResponseStream *rs) {
   rs->print("\"],\"tempList\":[");
 
   for (int i = 0; i < NT; i++) {
-    rs->printf("%#.1f", TempInput[i]);
+    rs->printf("%#.1f", tempInput[i]);
     if (i < NT - 1) rs->print(",");
   }
 
   rs->print("],\"targetList\":[");
   for (int i = 0; i < NT; i++) {
-    rs->printf("%#.1f", SetPoint[i]);
+    rs->printf("%#.1f", setPoint[i]);
     if (i < NT - 1) rs->print(",");
   }
   rs->println("]}");

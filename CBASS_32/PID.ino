@@ -3,12 +3,12 @@
 void applyTargets() {
   // Copy temperatures - it is not clear why we have both.  It may keep the PID values from 
   // unwanted adjustments while the RAMP_START_TEMP values are being updated and adjusted.
-  for (i=0; i<NT; i++) SetPoint[i] = RAMP_START_TEMP[i];
+  for (i=0; i<NT; i++) setPoint[i] = RAMP_START_TEMP[i];
 }
 
 void rampOffsets() {
-  for (i=0; i<NT; i++) Correction[i] = TANK_TEMP_CORRECTION[i];
-  ChillOffset = CHILLER_OFFSET;  //the offset below the set temp when the chiller kicks in
+  for (i=0; i<NT; i++) correction[i] = TANK_TEMP_CORRECTION[i];
+  chillOffset = CHILLER_OFFSET;  //the offset below the set temp when the chiller kicks in
 }
 
 /**

@@ -11,22 +11,6 @@ void startDisplay() {
     tft.setTextColor(WHITE);
 }
 
-/* old version
-void displayTemperatureStatus() {
-    tft.fillScreen(BLACK);
-
-    for (i=0; i<NT; i++) {
-      tft.setCursor(0, i*LINEHEIGHT);
-      tft.print("T"); tft.print(i+1); tft.print("SP ");
-      dtostrf(SetPoint[i], 4, 1, SetPointStr);
-      tft.print(SetPointStr);
-      tft.print(" T"); tft.print(i+1); tft.print(" ");
-      dtostrf(TempInput[i], 4, 1, TempInputStr);
-      tft.print(TempInputStr);
-      box(RelayStateStr[i], i, LINEHEIGHT);
-    }
-} */
-
 /**
  * Put a message on the display and Serial monitor, and then
  * wait long enough to trigger a reboot.  Note that the argument
@@ -91,7 +75,7 @@ void tftPauseWarning(boolean on) {
   tft.setTextColor(WHITE);
 }
 
-/*
+/*  Unbuffered version.  Faster and saves memory, but only significant on AVR-based Arduinos.
 void displayTemperatureStatusBold() {
     tft.setTextSize(2);
     // Only clear below the heading for less flashing.  Also don't clear the boxes, which are refreshed anyway.
@@ -112,11 +96,11 @@ void displayTemperatureStatusBold() {
       tft.fillRect(LINEHEIGHT*2, lineTop, TFT_WIDTH-LINEHEIGHT3*4, LINEHEIGHT3, BLACK);
       tft.setCursor(0, lineTop);
       tft.print("T"); tft.print(i+1); tft.print(" ");
-      dtostrf(SetPoint[i], 4, 1, SetPointStr);
-      tft.print(SetPointStr);
+      dtostrf(setPoint[i], 4, 1, setPointStr);
+      tft.print(setPointStr);
       tft.print(" ");
-      dtostrf(TempInput[i], 4, 1, TempInputStr);
-      tft.print(TempInputStr);
+      dtostrf(tempInput[i], 4, 1, tempInputStr);
+      tft.print(tempInputStr);
       box(RelayStateStr[i], lineTop, LINEHEIGHT3-2 - shrinkBox);
     }
 
@@ -148,6 +132,7 @@ void displayTemperatureStatusBold() {
 // too slow, but I'm keeping the code temporarily, hoping to come up with a faster buffer.
 // If enabled, a canvas variable will be needed globally or as a static here:
 GFXcanvas1 canvas(TFT_WIDTH-LINEHEIGHT3*2, LINEHEIGHT3); // For blink-free line updates on the screen.
+GFXcanvas1 canvasNarrow(TFT_WIDTH, 8); // For blink-free line updates on the screen.
 void displayTemperatureStatusBold() {
     tft.setTextSize(2);
     // Only clear below the heading for less flashing.  Also don't clear the boxes, which are refreshed anyway.
@@ -168,11 +153,11 @@ void displayTemperatureStatusBold() {
       canvas.fillScreen(BLACK);
       canvas.setCursor(0, 0);
       canvas.print("T"); canvas.print(i+1); canvas.print(" ");
-      dtostrf(SetPoint[i], 4, 1, SetPointStr);
-      canvas.print(SetPointStr);
+      dtostrf(setPoint[i], 4, 1, setPointStr);
+      canvas.print(setPointStr);
       canvas.print(" ");
-      dtostrf(TempInput[i], 4, 1, TempInputStr);
-      canvas.print(TempInputStr);
+      dtostrf(tempInput[i], 4, 1, tempInputStr);
+      canvas.print(tempInputStr);
       // The canvas is sized to overwrite the text in the old line, but not the relay box at the end.
       //tft.drawBitmap(0, LINEHEIGHT3 * (i+1), canvas.getBuffer(), TFT_WIDTH-LINEHEIGHT3*2, LINEHEIGHT3, WHITE, BLACK);
       tft.drawBitmap(0, lineTop, canvas.getBuffer(), TFT_WIDTH-LINEHEIGHT3*2, LINEHEIGHT3, WHITE, BLACK);
@@ -180,20 +165,19 @@ void displayTemperatureStatusBold() {
     }
 
         // Add time and IP address in the smallest font at the bottom of the screen.
-    
-    tft.setCursor(1, TFT_HEIGHT-8);
-    tft.setTextSize(0);
-    tft.setTextColor(GREEN);
-    tft.fillRect(0, TFT_HEIGHT-8, TFT_WIDTH, 8, BLACK);
+    canvasNarrow.setCursor(1, 0);
+    canvasNarrow.setTextSize(0);
+    canvasNarrow.setTextColor(GREEN);
+    canvasNarrow.fillRect(0, 0, TFT_WIDTH, 8, BLACK);
 
-    tft.print(gettime());  tft.print("   IP: ");
-    tft.print(myIP.toString().c_str());
+    canvasNarrow.print(gettime());  canvasNarrow.print("   IP: ");
+    canvasNarrow.print(myIP.toString().c_str());
 
     // Temporarily add boot time as a diagnostic
-    tft.print("  Started: ");
-    tft.print(bootTime.c_str());
-    tft.setTextColor(WHITE);
-     
+    canvasNarrow.print("  Started: ");
+    canvasNarrow.print(bootTime.c_str());
+    tft.drawBitmap(0, TFT_HEIGHT-8, canvasNarrow.getBuffer(), TFT_WIDTH, 8, GREEN, BLACK);
+    
     // To add diagnostics after the temperature lines:
     // tft.fillRect(LINEHEIGHT*2, LINEHEIGHT3*5, TFT_WIDTH-LINEHEIGHT3*4, LINEHEIGHT3, BLACK);
     // tft.setCursor(0, LINEHEIGHT3*5);

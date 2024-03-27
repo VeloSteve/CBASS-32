@@ -889,13 +889,13 @@ void saveGraphTemps() {
   Serial.println(t.second());
   byte i;
   for (i = 0; i < NT; i++) {
-    if (TempInput[i] < 10.0) logFile.print("0");  // In case of single-digit temps.  We assume >= 0.
-    logFile.print(TempInput[i], 1);
+    if (tempInput[i] < 10.0) logFile.print("0");  // In case of single-digit temps.  We assume >= 0.
+    logFile.print(tempInput[i], 1);
     logFile.print(",");
   }
   for (i = 0; i < NT; i++) {
-    if (SetPoint[i] < 10.0) logFile.print("0");  // In case of single-digit temps.  We assume >= 0.
-    logFile.print(SetPoint[i], 1);
+    if (setPoint[i] < 10.0) logFile.print("0");  // In case of single-digit temps.  We assume >= 0.
+    logFile.print(setPoint[i], 1);
     if (i < 3) logFile.print(",");
   }
   logFile.println();

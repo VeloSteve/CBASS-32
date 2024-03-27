@@ -111,10 +111,10 @@ void relayTest() {
 // check lights here.
 void updateRelays() {
   for (i=0; i<NT; i++) {
-    // We originally checked for TempOutput < 0, but that is never the case
-    // now that SetOutputLimits is never called.  TempOutput ranges from 0.0 to 255.0
-    if (TempOutput[i] < 0) { //Chilling
-      if (TempInput[i] > SetPoint[i] - ChillOffset) {
+    // We originally checked for tempOutput < 0, but that is never the case
+    // now that SetOutputLimits is never called.  tempOutput ranges from 0.0 to 255.0
+    if (tempOutput[i] < 0) { //Chilling
+      if (tempInput[i] > setPoint[i] - chillOffset) {
         digitalWrite(ChillRelay[i], RELAY_ON);
         digitalWrite(HeaterRelay[i], RELAY_OFF);
         strcpy(RelayStateStr[i], "CHL");
@@ -125,8 +125,8 @@ void updateRelays() {
         strcpy(RelayStateStr[i], "OFF");
       }
     } else { //Heating
-      if (TempOutput[i] > 0.0) {  
-        if (TempInput[i] > SetPoint[i] - ChillOffset) {
+      if (tempOutput[i] > 0.0) {  
+        if (tempInput[i] > setPoint[i] - chillOffset) {
           digitalWrite(HeaterRelay[i], RELAY_ON);
           digitalWrite(ChillRelay[i], RELAY_ON);
           strcpy(RelayStateStr[i], "HTR");
@@ -138,7 +138,7 @@ void updateRelays() {
         }
       }
       else {
-        if (TempInput[i] > SetPoint[i] - ChillOffset) {
+        if (tempInput[i] > setPoint[i] - chillOffset) {
           digitalWrite(HeaterRelay[i], RELAY_ON);
           digitalWrite(ChillRelay[i], RELAY_ON);
           strcpy(RelayStateStr[i], "HTR");

@@ -7,9 +7,9 @@
    We use "time proportioning
    control"  Tt's essentially a really slow version of PWM.
    First we decide on a window size (5000mS say.) We then
-   set the pid to adjust its TempOutput between 0 and that window
+   set the pid to adjust its tempOutput between 0 and that window
    size.  Lastly, we add some logic that translates the PID
-   TempOutput into "Relay On Time" with the remainder of the
+   tempOutput into "Relay On Time" with the remainder of the
    window being "Relay Off Time".
 
    Beginning in 2023 this version of the sketch is designed to support
@@ -20,8 +20,7 @@
    is needed to control the relay outputs.
 
    TODO: (remove this when done)
-   - Verify that the display and relays (all 16 outputs work as expected)
-   - Add WiFi monitoring on the second core
+   - Verify that the display and relays (all 16 outputs) work as expected
    - Ensure that WiFi and primary operations can not interfere with
      each other, for example by both attempting to access the SD card
      at the same time.
@@ -35,20 +34,16 @@
    directory.  Please read that file for terms.
 
    Other imported libraries may be subject to their own terms.
+
+   The software is hosted at https://github.com/VeloSteve/CBASS-32
  ********************************************************/
 // C++ standard library so we can have a vector of PIDs
 #include <vector>
 
 // SD card library (do NOT use SD.h!)
 #include <SdFat.h>
-// Libraries for WiFi
-//#include <WiFi.h>  Originally had this, but works without it!
-#include <ESPAsyncWebSrv.h>
-
-// Library for the Adafruit TFT LCD Display
+// Adafruit TFT LCD Display
 #include <Adafruit_ILI9341.h>
-//GFXcanvas16 canvas;
-
 // PID Library
 #include <PID_v1.h>
 //#include <PID_AutoTune_v0.h>
@@ -56,24 +51,26 @@
 // Libraries for the DS18B20 Temperature Sensor
 #include <OneWire.h>
 #include <DallasTemperature.h>
+// Real time clock
 #include <RTClib.h>
+// SPIFFS internal file system on ESP32
 #include "SPIFFS.h"
 #define FORMAT_SPIFFS_IF_FAILED true
 
+// CBASS settings and constants.
 #include "settings.h"
 
-
-
-const int port = 80;
-AsyncWebServer server(port);
+// Web server
+#include <ESPAsyncWebSrv.h>
 #include "WebPieces.h"
-IPAddress myIP;
+
+// Add a watchdog timer so the system restarts if it somehow hangs.  This could prevent a fire in extreme cases!
+#include <esp_task_wdt.h>
+#define WDT_TIMEOUT 28  // How long to wait before rebooting in case of trouble (seconds).
 
 /* Arduino IDE auto-generates function prototypes, but often fails!  When the
    compiler says something like
- error: 'startDisplay' was not declared in this scope
-   startDisplay();             // TFT display
-   ^~~~~~~~~~~~
+      "error: 'startDisplay' was not declared in this scope"
   put the prototype here.  Typically it is just the first line of the function
   definition with " {" replaced by ";".
   To be safe, put every function used in this file into this list.
@@ -120,34 +117,35 @@ void checkSD(char* txt);
 void setupMessages();
 void pauseLogging(boolean a);
 
-// The new display uses SPI communication (not I2C), shared with other components.
+
+// ===== Global variables are defined below. =====
+const int port = 80;
+AsyncWebServer server(port);
+IPAddress myIP;
+
+// The TFT display uses SPI communication (not I2C), shared with the SD card.
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC);  // The CS and DC pins.
 
-// Add a watchdog timer so the system restarts if it somehow hangs.  This could prevent a fire in extreme cases!
-#include <esp_task_wdt.h>
-#define WDT_TIMEOUT 28  // How long to wait before rebooting in case of trouble (seconds).
-
-// RTC is now DS3231, if there is trouble with older hardware, try RTC_DS1307.
+// The Real Time Clock is now DS3231, if there is trouble with older hardware, try RTC_DS1307.
 RTC_DS3231  rtc;
-
 DateTime  t;
 
 // A file for logging the data.
+File32 logFile;
 boolean logPaused = false;
 unsigned long startPause = 0;
-File32 logFile;
-String printdate = "CBASS-32"; // No spaces or commas.  Otherwise just something that gets logged.
+// Formerly "printDate" No spaces or commas.  Otherwise just something that gets logged.
+String logLabel = "CBASS-32"; 
+
 // Storage for the characters of keyword while reading Settings.ini.
-const byte BUFMAX = 16; // INTERP is the longest keyword for now.  PINs can be 15+null terminator.
+const byte BUFMAX = 16; // INTERP is the longest keyword for now.
 char iniBuffer[BUFMAX];
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(SENSOR_PIN);
-
-//Setup temp sensors
+// Temperature sensors
 DallasTemperature sensors(&oneWire);
-
-DeviceAddress Thermometer[NT];
+DeviceAddress thermometer[NT];
 
 //Define Variables we'll Need
 // Ramp plan
@@ -163,27 +161,29 @@ unsigned int lightMinutes[MAX_LIGHT_STEPS];
 byte lightStatus[MAX_LIGHT_STEPS];
 short lightSteps = 0;
 short lightPos = 0; // Current light state
-char LightStateStr[NT][4]; // = {"LLL", "LLL", "LLL", "LLL"}; // [number of entries][characters + null terminator]
+char lightStateStr[NT][4]; // = {"LLL", "LLL", "LLL", "LLL"}; // [number of entries][characters + null terminator]
 #endif // COLDWATER
 
 //Temperature Variables
 double tempT[NT];
-double SetPoint[NT], TempInput[NT], TempOutput[NT], Correction[NT];
-double ChillOffset;
+double setPoint[NT], tempInput[NT], tempOutput[NT], correction[NT];
+double chillOffset;
 unsigned int i;  // General use
 
-// Time Windows: Update LCD 2/sec; Serial, Ramp Status 1/sec, TPC 1/2 sec
+// Range of values used [-TPCwindow, TPCwindow] by the PID algorithm.
+const int TPCwindow=10000;
+
+// Time Windows: Update LCD 2/sec; Serial (logging) 1/sec, Ramp Status 1/sec
 const unsigned int LCDwindow = 500;
 const unsigned int SERIALwindow = 5000;  // Default 1000; how often to log.
-const int TPCwindow=10000;
-const int targetUpdatePeriod = 6000; // 10 times per minute.  Was once.
+unsigned int GRAPHwindow = 60000;
 
-const unsigned int serialOutPeriod = 10000; // Print header after this many lines.  Not useful for automated use.
-unsigned int SerialOutCount = serialOutPeriod + 1;  // Print at the top of any new log.
+const unsigned int serialHeaderPeriod = 10000; // Print header after this many lines.  Not useful for automated use.
+unsigned int SerialOutCount = serialHeaderPeriod + 1;  // Print at the top of any new log.
 
 // Display Conversion Strings
-char SetPointStr[5];  // Was an array of [NT][5], but we only need one at a time.
-char TempInputStr[5];
+char setPointStr[5];  // Was an array of [NT][5], but we only need one at a time.
+char tempInputStr[5];
 char RelayStateStr[NT][4]; // [number of entries][characters + null terminator]
 // char RelayStateStr[][4] = {"OFF", "OFF", "OFF", "OFF"}; // [number of entries][characters + null terminator]
 
@@ -195,12 +195,10 @@ char RelayStateStr[NT][4]; // [number of entries][characters + null terminator]
 // A vector of PID Controllers which will be instantiated in setup().
 std::vector<PID> pids;
 
-// Graphing updates
-unsigned int GRAPHwindow = 60000;
-unsigned long GRAPHt;
+
 
 //TimeKeepers
-unsigned long now_ms = millis(),SERIALt, LCDt;
+unsigned long now_ms = millis(),SERIALt, LCDt, GRAPHt;
 String bootTime;
 
 /////////////////////////////////////////////
@@ -210,7 +208,7 @@ void setup()
 {
   for (i=0; i<NT; i++) {
     // Instantiate a PID on each pass, using the given arguments.  Append it to the vector
-    pids.emplace_back(PID(&TempInput[i], &TempOutput[i], &SetPoint[i], KP, KI, KD, DIRECT));
+    pids.emplace_back(PID(&tempInput[i], &tempOutput[i], &setPoint[i], KP, KI, KD, DIRECT));
   }
   // Start "reset if hung" watchdog timer. 8 seconds is the longest available interval.
   esp_task_wdt_init(WDT_TIMEOUT, true);
@@ -293,7 +291,9 @@ void setup()
  * On this same date, the default triggers are 60000 ms for temperature target updates, 1000 ms for serial logging,
  * and 500 ms for LCD display updates.  When the latter two are smaller than the actual loop time, they simply
  * run every time.
+ * With the ESP32 processor the fast loops take only about 7 ms!  With temperature checks 294 ms and with logging, 304 ms.
  * TODO: update timings for the ESP32.  There will be big changes, probably not equally distributed.
+
  * Within each loop most of the time is in 4 areas: 479 ms in requestTemperatures, 193 ms getting and adjusting
  * temperatures, 199 ms logging (to serial monitor and SD card), 183 ms updating the LCD display.
  * On loops when target values are updated, 3 ms is spent doing that work  and 113 ms printing the result.
@@ -307,30 +307,21 @@ void setup()
 unsigned long timer24h = 0;
 void loop()
 {
-  esp_task_wdt_reset();
   // ***** Time Keeping *****
   now_ms = millis();
-  t = rtc.now();  // Do this every loop so called function don't have to.
+  t = rtc.now();  // Do this every loop so called functions don't have to.
 
   // ***** INPUT FROM TEMPERATURE SENSORS *****
   getTemperatures();
-
-  // Update temperature targets once per minute.
-  if ((now_ms - timer24h) > 60000) {
-    checkTime();
-
-    timer24h = now_ms;
-    getCurrentTargets();
-    applyTargets();
+  // Update temperature targets.  This originally had a delay, but it takes almost no time.
+  // checkTime(); // Print time of day, redundant with logging.
+  getCurrentTargets();
+  applyTargets();
+  //ShowRampInfo(); // To display on serial monitor.
 #ifdef COLDWATER
-    // Similar to getCurrentTargets/applyTargets, but for lighting.
-    getLightState();
+  // Similar to getCurrentTargets/applyTargets, but for lighting.
+  getLightState();
 #endif    
-
-    //ShowRampInfo();
-
-    esp_task_wdt_reset();
-  }
 
   // Remove the ifdef if we have other reasons to save the graphing file.  It's just a less
   // detailed version of the main log.
@@ -345,36 +336,30 @@ void loop()
   // ***** UPDATE PIDs *****
   for (i=0; i<NT; i++) pids[i].Compute();
 
-
   //***** UPDATE RELAY STATE for TIME PROPORTIONAL CONTROL *****
   // For ESP we may want to slow this down if relays switch too often.
   updateRelays();
 
   //***** UPDATE SERIAL MONITOR AND LOG *****
-
   if (now_ms - SERIALt > SERIALwindow) {
-    // Some log management operations could conflict with logging.
-    // it is safest not to do them during an active experiment.
+    // Logging is skipped during certain web operations.
     if (!logPaused) {
       SerialReceive();
       SerialSend();
       SERIALt += SERIALwindow;
     } else {
+      // TODO: adjust timing so we log again promptly, but don't add extra "make up" log lines.
       tftPauseWarning(true);
     }
   }
 
   //***** UPDATE LCD *****
-  if ((now_ms - LCDt) > LCDwindow)
+  if (now_ms - LCDt > LCDwindow)
   {
-    // Two styles - a matter of taste.  This is also where a version with graphing could be called.
-    // In that case a more compact text portion would be desireable.
-    //displayTemperatureStatus();
     displayTemperatureStatusBold();
-    // No need to delay.  LCDwindow should regulate things.
     LCDt += LCDwindow;
   }
-
+  esp_task_wdt_reset();
 }
 
 void SerialSend()
@@ -394,19 +379,19 @@ void SerialSend()
   // more reliable than O_APPEND alone ?
   logFile.seekEnd(0);
 
-  if (SerialOutCount > serialOutPeriod) {
+  if (SerialOutCount > serialHeaderPeriod) {
     printLogHeader();
     SerialOutCount = 0;
   }
   // General data items not tied to a specific tank:
-  printBoth(printdate), printBoth(","), printBoth(getdate()), printBoth(","), printBoth(now_ms), printBoth(","),
+  printBoth(logLabel), printBoth(","), printBoth(getdate()), printBoth(","), printBoth(now_ms), printBoth(","),
   printBoth(t.hour(), DEC), printBoth(","), printBoth(t.minute(), DEC), printBoth(","), printBoth(t.second(), DEC), printBoth(",");
   // Per-tank items
   for (i=0; i<NT; i++) {
-    printBoth(SetPoint[i]), printBoth(","),
-    printBoth(TempInput[i]), printBoth(","),
+    printBoth(setPoint[i]), printBoth(","),
+    printBoth(tempInput[i]), printBoth(","),
     printBoth(tempT[i]), printBoth(","),
-    printBoth(TempOutput[i]), printBoth(","),
+    printBoth(tempOutput[i]), printBoth(","),
     printBoth(RelayStateStr[i]), printBoth(",");
   }
   printlnBoth();
@@ -429,7 +414,7 @@ void SerialSend()
  * either a loop with "ifs" inside for the log file, or one "if" and two loops.
  */
 void printLogHeader() {
-  printBoth(F("PrintDate,Date,N_ms,Th,Tm,Ts,"));
+  printBoth(F("LogLabel,Date,N_ms,Th,Tm,Ts,"));
   if (logFile) {
     // Normally loop from 0, but here we want tank numbers.
     for (int i=1; i<=NT; i++) {
@@ -460,11 +445,11 @@ void setupMessages() {
   tft.fillScreen(BLACK);
   tft.setTextSize(3);
   tft.setCursor(0, 0);  // remember that the original LCD counts characters.  This counts pixels.
-  tft.print("PrintDate is:");
+  tft.print("LogLabel is:");
   tft.setCursor(0, LINEHEIGHT3);
-  tft.print(printdate);
-  Serial.println("PrintDate is:");
-  Serial.println(printdate);
+  tft.print(logLabel);
+  Serial.println("LogLabel is:");
+  Serial.println(logLabel);
   // Show RTC time so we know it's working.
   tft.setCursor(0, LINEHEIGHT*4);
   tft.print("Time: "); tft.print(gettime());
@@ -494,20 +479,20 @@ void getTemperatures() {
   // Get temperatures for each tank by address so we have a definite
   // association between tanks, sensors, and addresses.
   for (i=0; i<NT; i++) {
-    tempT[i] = sensors.getTempC(Thermometer[i]) - Correction[i];
-    if (0.0 < tempT[i] && tempT[i] < 80.0)  TempInput[i] = tempT[i];
+    tempT[i] = sensors.getTempC(thermometer[i]) - correction[i];
+    if (0.0 < tempT[i] && tempT[i] < 80.0)  tempInput[i] = tempT[i];
   }
   /*  Original approach
   for (i=0; i<NT; i++) {
-    tempT[i] = sensors.getTempCByIndex(i) - Correction[i];
-    if (0.0 < tempT[i] && tempT[i] < 80.0)  TempInput[i] = tempT[i];
+    tempT[i] = sensors.getTempCByIndex(i) - correction[i];
+    if (0.0 < tempT[i] && tempT[i] < 80.0)  tempInput[i] = tempT[i];
   }
    */
 }
 
 void ShowRampInfo() {
   for (int i=0; i<NT; i++) {
-    Serial.printf("The ramp %d temp:\t%f\n", (i+1), SetPoint[i]);
+    Serial.printf("The ramp %d temp:\t%f\n", (i+1), setPoint[i]);
   }
 }
 

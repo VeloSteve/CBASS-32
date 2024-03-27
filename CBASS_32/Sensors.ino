@@ -9,7 +9,7 @@ void sensorsInit()
     // ***** INPUT *****
   // Start up the TempSensor library.
   // sensors is a DallasTemperature object.
-  // Thermometer is an array of DeviceAddress values.
+  // thermometer is an array of DeviceAddress values.
   sensors.begin(); // IC Default 9 bit. If you have troubles consider upping it 12. Ups the delay giving the IC more time to process the temperature measurement
   Serial.printf("Found %d sensor devices.\n", sensors.getDeviceCount());
 
@@ -18,7 +18,7 @@ void sensorsInit()
 
   // A temporary thermometer list long enough for all cases.
   // After selecting and ordering, some or all will be copied to 
-  // Thermometer[NT].
+  // thermometer[NT].
   DeviceAddress tt[max(dc, NT)];
   DeviceAddress needsSettingsEntry[max(dc, NT)]; // Just the new ones.
 
@@ -88,7 +88,7 @@ void sensorsInit()
     for (i = 0; i < uCount; i++) Serial.printf(" %d, ", unique[i]);
     Serial.println();
 
-    // Now we copy addresses to Thermometer in set order, saving -1 for last.
+    // Now we copy addresses to thermometer in set order, saving -1 for last.
     int k, iSet = 0;
     int setMoved;
     // Move all thermometers with known sets to a tank, stopping
@@ -99,7 +99,7 @@ void sensorsInit()
       // Copy all addresses matching iSet.
       for (k = 0; k < dc && tanksMoved < NT; k++) {
         if (allFound[k] == iSet) {
-          for (int j = 0; j < 8; j++) Thermometer[tanksMoved][j] = tt[k][j];
+          for (int j = 0; j < 8; j++) thermometer[tanksMoved][j] = tt[k][j];
           tanksMoved++;
           setMoved++;
         }
@@ -111,7 +111,7 @@ void sensorsInit()
       // Copy all addresses matching iSet.
       for (k = 0; k < dc && tanksMoved < NT; k++) {
         if (allFound[k] == -1) {
-          for (int j = 0; j < 8; j++) Thermometer[tanksMoved][j] = tt[k][j];
+          for (int j = 0; j < 8; j++) thermometer[tanksMoved][j] = tt[k][j];
           tanksMoved++;
         }
       }
@@ -120,7 +120,7 @@ void sensorsInit()
   } else {
     // Simpler code for base case with no more than 4 tanks and 4 sensors.
     for (i = 0; i < min(dc, NT); i++) {
-      for (int j = 0; j < 8; j++) Thermometer[i][j] = tt[i][j];
+      for (int j = 0; j < 8; j++) thermometer[i][j] = tt[i][j];
       tanksMoved++;
     }
   }

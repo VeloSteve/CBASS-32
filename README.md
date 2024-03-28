@@ -1,2 +1,25 @@
 # CBASS-32
 Main and supporting sketches for the Coral Bleaching Automated Stress System, ESP32 version
+
+## CBASS-32
+This is the main sketch to run experiments.  Extensive documentation is XXX-link google doc here.
+You will be able to control up to 8 experimental tanks from a single compact CBASS-32 system.
+Thermal control is the same as on legacy systems.  The new system has a web interface.  This supports
+the following actions with physical access to the system's microSD card:
+1. Edit the ramp plan.
+2. Change the start time of the ramp.
+3. Synchronize the real time clock to the attached device.
+4. Download the LOG.txt file.
+5. Roll over the LOG.txt file into a backup directory and start a new one.
+6. Monitor temperatures on a live graph.
+
+## SPIFFS_upload
+The web interface depends on several CSS, Javascript, and icon files.  This tool allows
+them to be moved from an installed microSD card to the ESP32's internal filesystem.  This
+has proven faster and more reliable than the SD card, so it is mandatory.  Brief instructions
+are in the *.ino file.
+
+## References
+The main methods paper for CBASS is:
+
+Evensen, N. R., Parker, K. E., Oliver, T. A., Palumbi, S. R., Logan, C. A., Ryan, J. S., ... & Barshis, D. J. (2023). [The coral bleaching automated stress system (CBASS): a low‐cost, portable system for standardized empirical assessments of coral thermal limits.[(https://aslopubs.onlinelibrary.wiley.com/doi/pdfdirect/10.1002/lom3.10555) Limnology and Oceanography: Methods, 21(7), 421-434.

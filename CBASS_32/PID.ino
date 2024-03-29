@@ -67,11 +67,8 @@ void getCurrentTargets() {
     for (i=0; i<NT; i++) RAMP_START_TEMP[i] = (double)rampHundredths[i][rampPos] / 100.0;
     return;
   }
-  printBoth("==ERROR== no current target found at minutes = ");
-  printBoth(dayMin);
-  printBoth(" relativeStartTime = ");
-  printBoth(relativeStartTime);
-  printlnBoth();
+  Serial.printf("==ERROR== no current target found at minutes = %d, relativeStartTime = %d\n", dayMin, relativeStartTime);
+  if (logFile) logFile.printf("==ERROR== no current target found at minutes = %d, relativeStartTime = %d\n", dayMin, relativeStartTime);
 }
 
 
@@ -79,7 +76,7 @@ void getCurrentTargets() {
 
 void PIDinit()
 {
-  //tell the PID to range between 0 and the full window size.
+  //tell the PID to range between plus and minus the TPCwindow.
   //turn the PID on
   // Now that we have a vector of pids (it was an array) we could also use the syntax
   //   for (const MyObject& obj : arrayOfObjects) { function calls here; }

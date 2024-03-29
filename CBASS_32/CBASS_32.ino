@@ -7,9 +7,9 @@
    We use "time proportioning
    control"  Tt's essentially a really slow version of PWM.
    First we decide on a window size (5000mS say.) We then
-   set the pid to adjust its tempOutput between 0 and that window
+   set the pid to adjust its controlOutput between 0 and that window
    size.  Lastly, we add some logic that translates the PID
-   tempOutput into "Relay On Time" with the remainder of the
+   controlOutput into "Relay On Time" with the remainder of the
    window being "Relay Off Time".
 
    Beginning in 2023 this version of the sketch is designed to support
@@ -100,14 +100,7 @@ void printLogHeader();
 void printBoth(const char *str);
 void printBoth(unsigned int d);
 void printBoth(int d);
-void printBoth(byte d);
-void printBoth(unsigned long d);
-void printBoth(long d);
-void printBoth(double d);
 void printBoth(double d, int places);
-void printBoth(String str);
-void printBoth(char c);
-void printBoth(uint8_t n, int f);
 void printlnBoth();
 String getdate();
 void fatalError(const __FlashStringHelper *msg);
@@ -165,8 +158,9 @@ char lightStateStr[NT][4]; // = {"LLL", "LLL", "LLL", "LLL"}; // [number of entr
 #endif // COLDWATER
 
 //Temperature Variables
+// Note that "controlOutput" was formerly "tempOutput", but it is not in temperature units, so the name was misleading.
 double tempT[NT];
-double setPoint[NT], tempInput[NT], tempOutput[NT], correction[NT];
+double setPoint[NT], tempInput[NT], controlOutput[NT], correction[NT];
 double chillOffset;
 unsigned int i;  // General use
 
@@ -208,16 +202,16 @@ void setup()
 {
   for (i=0; i<NT; i++) {
     // Instantiate a PID on each pass, using the given arguments.  Append it to the vector
-    pids.emplace_back(PID(&tempInput[i], &tempOutput[i], &setPoint[i], KP, KI, KD, DIRECT));
+    pids.emplace_back(PID(&tempInput[i], &controlOutput[i], &setPoint[i], KP, KI, KD, DIRECT));
   }
   // Start "reset if hung" watchdog timer. 8 seconds is the longest available interval.
   esp_task_wdt_init(WDT_TIMEOUT, true);
   esp_task_wdt_add(NULL);
 
   // ***** INITALIZE OUTPUT *****`
-  Serial.begin(38400);         // 9600 traditionally. 38400 saves a bit of time
+  Serial.begin(38400);    // 9600 traditionally. 38400 saves a bit of time
+  delay(5000);            // Serial does not initialize properly without a delay.
   esp_task_wdt_reset();
-  delay(5000);
 
   startDisplay();             // TFT display
   Serial.println("\n===== Booting CBASS-32 =====");
@@ -243,7 +237,7 @@ void setup()
   server.begin();
 
   checkTime();  // Sets global t and we save the start time.
-  delay(2000);
+  delay(1000);
   esp_task_wdt_reset();
 
   readRampPlan();
@@ -348,7 +342,8 @@ void loop()
       SerialSend();
       SERIALt += SERIALwindow;
     } else {
-      // TODO: adjust timing so we log again promptly, but don't add extra "make up" log lines.
+      // Adjust timing so we log again promptly, but don't add extra "make up" log lines.
+      SERIALt = millis() - SERIALwindow;
       tftPauseWarning(true);
     }
   }
@@ -365,34 +360,26 @@ void loop()
 void SerialSend()
 {
   //WARNING: the last argument to open() must be _WRITE for Mega, but _APPEND for ESP32. New: O_WRONLY | O_CREAT for SdFat.
-
   logFile = SDF.open("/LOG.txt",  O_WRONLY | O_CREAT | O_APPEND);
   //uint64_t lfs = logFile.size();
-
   if (!logFile) {
     Serial.println("ERROR: failed to write log file.");
     checkSD("After failing to open LOG.txt"); // debug
-
     fatalError(F("Unable to open LOG.txt for writing."));
-
   }
   // more reliable than O_APPEND alone ?
   logFile.seekEnd(0);
-
   if (SerialOutCount > serialHeaderPeriod) {
     printLogHeader();
     SerialOutCount = 0;
   }
   // General data items not tied to a specific tank:
-  printBoth(logLabel), printBoth(","), printBoth(getdate()), printBoth(","), printBoth(now_ms), printBoth(","),
-  printBoth(t.hour(), DEC), printBoth(","), printBoth(t.minute(), DEC), printBoth(","), printBoth(t.second(), DEC), printBoth(",");
+  Serial.printf("%s,%s,%d,%d,%d,%d,", logLabel, getdate(), now_ms, t.hour(), t.minute(), t.second());
+  logFile.printf("%s,%s,%d,%d,%d,%d,", logLabel, getdate(), now_ms, t.hour(), t.minute(), t.second());
   // Per-tank items
   for (i=0; i<NT; i++) {
-    printBoth(setPoint[i]), printBoth(","),
-    printBoth(tempInput[i]), printBoth(","),
-    printBoth(tempT[i]), printBoth(","),
-    printBoth(tempOutput[i]), printBoth(","),
-    printBoth(RelayStateStr[i]), printBoth(",");
+    Serial.printf("%.2f,%.2f,%.2f,%.1f,%s,", setPoint[i], tempInput[i], tempT[i], controlOutput[i], RelayStateStr[i]);
+    logFile.printf("%.2f,%.2f,%.2f,%.1f,%s,", setPoint[i], tempInput[i], tempT[i], controlOutput[i], RelayStateStr[i]);
   }
   printlnBoth();
   Serial.flush();
@@ -414,8 +401,10 @@ void SerialSend()
  * either a loop with "ifs" inside for the log file, or one "if" and two loops.
  */
 void printLogHeader() {
-  printBoth(F("LogLabel,Date,N_ms,Th,Tm,Ts,"));
+  Serial.print(F("LogLabel,Date,N_ms,Th,Tm,Ts,"));
   if (logFile) {
+    logFile.print(F("LogLabel,Date,N_ms,Th,Tm,Ts,"));
+
     // Normally loop from 0, but here we want tank numbers.
     for (int i=1; i<=NT; i++) {
       logFile.printf("T%dSP,T%dinT,TempT%d,T%doutT,T%dRelayState", i, i, i, i, i);
@@ -434,14 +423,15 @@ void SerialReceive()
 {
   if (Serial.available())
   {
-    //char b = Serial.read();  // JSR: Unused b generates a compiler warning.
     Serial.read();
     Serial.flush();
   }
 }
 
+/**
+ * Messages displayed on TFT and Serial monitor during startup.
+ */
 void setupMessages() {
-
   tft.fillScreen(BLACK);
   tft.setTextSize(3);
   tft.setCursor(0, 0);  // remember that the original LCD counts characters.  This counts pixels.
@@ -458,12 +448,9 @@ void setupMessages() {
 
   tft.setCursor(0, LINEHEIGHT3*5);
   tft.print(" 5s Pause...");
+  Serial.printf("\n\nInitialization sequence.\n");
   Serial.println();
-  Serial.println();
-  Serial.print("Initialization sequence.");
-  Serial.println();
-  Serial.print(" 5s Pause...");
-  Serial.println();
+  Serial.println(" 5s Pause...");
   delay(RELAY_PAUSE);
   esp_task_wdt_reset();
   Serial.println();

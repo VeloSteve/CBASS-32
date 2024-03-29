@@ -928,6 +928,10 @@ void clearTemps() {
    available log file here.
 
    Note that there is only one println version, so the line feed calls need to be separate from data.
+
+   Originally these were used for every write to the log file, but now that printf is available is
+   has replaced the *Both calls in some key locations.  This mixed usage is not ideal, but printf
+   is both faster and (once familiar) easier to read.
 */
 void printBoth(const char* str) {
   if (logFile) logFile.print(str);
@@ -941,40 +945,42 @@ void printBoth(int d) {
   if (logFile) logFile.print(d);
   Serial.print(d);
 }
-void printBoth(byte d) {
-  if (logFile) logFile.print(d);
-  Serial.print(d);
-}
-void printBoth(unsigned long d) {
-  if (logFile) logFile.print(d);
-  Serial.print(d);
-}
-void printBoth(long d) {
-  if (logFile) logFile.print(d);
-  Serial.print(d);
-}
-void printBoth(double d) {
-  if (logFile) logFile.print(d);
-  Serial.print(d);
-}
 void printBoth(double d, int places) {
   if (logFile) logFile.print(d, places);
   Serial.print(d, places);
-}
-void printBoth(String str) {
-  if (logFile) logFile.print(str);
-  Serial.print(str);
-}
-void printBoth(char c) {
-  if (logFile) logFile.print(c);
-  Serial.print(c);
-}
-// Format time as decimal (for example)
-void printBoth(uint8_t n, int f) {
-  if (logFile) logFile.print(n, f);
-  Serial.print(n, f);
 }
 void printlnBoth() {
   if (logFile) logFile.println();
   Serial.println();
 }
+//void printBoth(byte d) {
+//  if (logFile) logFile.print(d);
+//  Serial.print(d);
+//}
+//void printBoth(unsigned long d) {
+//  if (logFile) logFile.print(d);
+//  Serial.print(d);
+//}
+//void printBoth(long d) {
+//  if (logFile) logFile.print(d);
+//  Serial.print(d);
+//}
+//void printBoth(double d) {
+//  if (logFile) logFile.print(d);
+//  Serial.print(d);
+//}
+
+//void printBoth(String str) {
+//  if (logFile) logFile.print(str);
+//  Serial.print(str);
+//}
+//void printBoth(char c) {
+//  if (logFile) logFile.print(c);
+//  Serial.print(c);
+//}
+//// Format time as decimal (for example)
+//void printBoth(uint8_t n, int f) {
+//  if (logFile) logFile.print(n, f);
+//  Serial.print(n, f);
+//}
+

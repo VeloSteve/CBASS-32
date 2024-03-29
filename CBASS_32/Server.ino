@@ -834,31 +834,7 @@ void sendRampForm(AsyncResponseStream *rs) {
 
   rs->println("<body><h1>Ramp Plan</h1>");
   rs->println("<div class=\"container\">");
-  rs->println("<div id=\"messages\" class=\"wrapper flex\">msg</div> <div class=\"wrapper flex\" id=\"tableextras\">");
-
-  // Show the start time, if specified.
-  if (relativeStart) {
-    int hr = (int)(relativeStartTime / 60);
-    int min = relativeStartTime - hr * 60;
-    rs->printf("The current ramp start time is <input type=\"text\" id=\"StartTime\" name=\"StartTime\" value=\"%d:", hr);
-    if (min < 10) {
-      rs->print("0");
-      //if (min < 1) rs->print("0");
-    }
-
-    rs->printf("%d\"> in 24 hour time.<br><br>\n", min);
-    rs->print("<b>WARNING: changes will apply immediately, interrupting any ramp in progress.</b><br>");
-    rs->print("Enter times in HH:MM or H:MM format only.  Seconds are not supported.<br>");
-
-    rs->print("The \"Magic Word\" is not a secure password.  It is there to make you think twice.<br>");
-    rs->println("<label for=\"MagicWord\">Magic Word:</label>");
-    rs->println("<input type=\"text\" id=\"MagicWord\" name=\"MagicWord\" onblur=\"changedMagic(this)\"></div>");
-
-    //rs->println("<input type=\"submit\" value=\"Change Start time\"><br><br>");
-
-  } else {
-    rs->println("Times in the ramp plan represent time of day.<br>");
-  }
+  rs->println("<div id=\"messages\" class=\"wrapper flex\"></div>");
 
   short j;  // Tank counter
   // now show the ramp plan itself.
@@ -898,6 +874,32 @@ void sendRampForm(AsyncResponseStream *rs) {
   rs->println("<script src=\"/rampPlan.js\"></script>");
   // This supports table operations and sends data to the server when the button is pushed.
   rs->println("<script src=\"/tableScript.js\"></script>");
+
+  // Add the start time and magic word area.
+  rs->println("<div class=\"wrapper flex\" id=\"tableextras\">");
+    // Show the start time, if specified.
+  if (relativeStart) {
+    int hr = (int)(relativeStartTime / 60);
+    int min = relativeStartTime - hr * 60;
+    rs->printf("The current ramp start time is <input type=\"text\" id=\"StartTime\" name=\"StartTime\" value=\"%d:", hr);
+    if (min < 10) {
+      rs->print("0");
+      //if (min < 1) rs->print("0");
+    }
+
+    rs->printf("%d\"> in 24 hour time.<br><br>\n", min);
+    rs->print("<b>WARNING: changes will apply immediately, interrupting any ramp in progress.</b><br>");
+    rs->print("Enter times in HH:MM or H:MM format only.  Seconds are not supported.<br>");
+
+    rs->print("The \"Magic Word\" is not a secure password.  It is there to make you think twice.<br>");
+    rs->println("<label for=\"MagicWord\">Magic Word:</label>");
+    rs->println("<input type=\"text\" id=\"MagicWord\" name=\"MagicWord\" onblur=\"changedMagic(this)\"></div>");
+
+    //rs->println("<input type=\"submit\" value=\"Change Start time\"><br><br>");
+
+  } else {
+    rs->println("Times in the ramp plan represent time of day.<br>");
+  }
 
   rs->println(linkList);
   rs->println("</body></html>");

@@ -2,13 +2,12 @@
 void updateShiftRegister();
 void MYshiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val);
 
-
 byte shiftRegByte = 0;
 
-void RelaysInit()
-{
+void RelaysInit() {
   //-------( Initialize Pins so relays are inactive at reset)----
-  for (i = 0; i < NT; i++) {
+  // No more than 4 pins, since any beyond that are handled by the shift register.
+  for (i = 0; i < min(NT, 4); i++) {
     // Set relay signal to off
     digitalWrite(HeaterRelay[i], RELAY_OFF);
     digitalWrite(ChillRelay[i], RELAY_OFF);
@@ -20,7 +19,6 @@ void RelaysInit()
     pinMode(LightRelay[i], OUTPUT);
 #endif
   }
- 
   // Shift Register
   pinMode(LATCH_PIN, OUTPUT);
   pinMode(DATA_PIN, OUTPUT);
@@ -28,8 +26,6 @@ void RelaysInit()
   digitalWrite(LATCH_PIN, HIGH);
   shiftRegByte = 0;
   updateShiftRegister();
-
-
 }
 
 /**
@@ -46,107 +42,116 @@ void relayTest() {
     if (i >= 4) shiftUp = 2 * 4 * LINEHEIGHT3;
     lineY = 2 * i * LINEHEIGHT3 - shiftUp;
     if (shiftUp > 0) {
-        tft.fillRect(0, lineY, TFT_WIDTH, LINEHEIGHT3, BLACK);
+      tft.fillRect(0, lineY, TFT_WIDTH, LINEHEIGHT3, BLACK);
     }
     tft.setCursor(0, lineY);
 
     // Test one heater relay
-    tft.print(2 * i + 1); tft.print(". T"); tft.print(i + 1); tft.print("Heatr");
-    Serial.print(2 * i + 1); Serial.print(". T"); Serial.print(i + 1); Serial.println("Heatr");
-    digitalWrite(HeaterRelay[i], RELAY_ON);
-    bitSet(shiftRegByte, HeaterRelayShift[i]);  updateShiftRegister();
+    tft.printf("%d. T%dHeatr", 2*i+1, i+1);
+    Serial.printf("%d. T%dHeatr\n", 2*i+1, i+1);
+    setHeatRelay(i, RELAY_ON);
     delay(RELAY_PAUSE);
-    esp_task_wdt_reset();
-    digitalWrite(HeaterRelay[i], RELAY_OFF);
-    bitClear(shiftRegByte, HeaterRelayShift[i]);  updateShiftRegister();
+    setHeatRelay(i, RELAY_OFF);
 
-    delay(100); // A brief delay so you can hear the "off" relay action separately from the following "on"
+    delay(100);  // A brief delay so you can hear the "off" relay action separately from the following "on"
     // Test one chiller relay
     lineY = (2 * i + 1) * LINEHEIGHT3 - shiftUp;
     if (shiftUp > 0) {
-        tft.fillRect(0, lineY, TFT_WIDTH, LINEHEIGHT3, BLACK);
+      tft.fillRect(0, lineY, TFT_WIDTH, LINEHEIGHT3, BLACK);
     }
     tft.setCursor(0, lineY);
 
-    tft.print(2 * i + 2); tft.print(". T"); tft.print(i + 1); tft.print("Chillr");
-    Serial.print(2 * i + 2); Serial.print(". T"); Serial.print(i + 1); Serial.println("Chillr");
-    digitalWrite(ChillRelay[i], RELAY_ON);
-    bitSet(shiftRegByte, ChillRelayShift[i]);  updateShiftRegister();
+    tft.printf("%d. T%dChillr", 2*i+2, i+1);
+    Serial.printf("%d. T%dChillr\n", 2*i+2, i+1);
+    setChillRelay(i, RELAY_ON);
 
     delay(RELAY_PAUSE);
-    esp_task_wdt_reset();
-    digitalWrite(ChillRelay[i], RELAY_OFF);
-    bitClear(shiftRegByte, ChillRelayShift[i]);  updateShiftRegister();
+    setChillRelay(i, RELAY_OFF);
 
-    delay(100); // A brief delay so you can hear the "off" relay action separately from the following "on"
+    delay(100);  // A brief delay so you can hear the "off" relay action separately from the following "on"
+    esp_task_wdt_reset();
   }
 
 #ifdef COLDWATER
   delay(RELAY_PAUSE);
-  esp_task_wdt_reset();
   tft.fillScreen(BLACK);
   for (i = 0; i < NT; i++) {
-    Serial.print("a "); Serial.println(millis());
+    Serial.print("a ");
+    Serial.println(millis());
     tft.setCursor(0, i * LINEHEIGHT3);
     // Test one light relay
-    tft.print(i + 1); tft.print(". T"); tft.print(i + 1); tft.print("Light");
-    Serial.print(i + 1); Serial.print(". T"); Serial.print(i + 1); Serial.println("Light");
-        Serial.print("b "); Serial.println(millis());
-
+    tft.printf("%d. T%dLight", i+1, i+1);
+    Serial.printf("%d. T%dLight\n", i+1, i+1);
     digitalWrite(LightRelay[i], RELAY_ON);
-        Serial.print("c "); Serial.println(millis());
-
     delay(RELAY_PAUSE);
     esp_task_wdt_reset();
-        Serial.print("d "); Serial.println(millis());
-
     digitalWrite(LightRelay[i], RELAY_OFF);
-        Serial.print("e "); Serial.println(millis());
-
   }
-#endif // COLDWATER
+  esp_task_wdt_reset();
+
+#endif  // COLDWATER
+}
+
+/**
+ * Relays for tanks 1-4 are directly controlled by Nano pins, but any higher numbers are 
+ * controlled by a shift register.  Make that choice here so other functions don't need
+ * to know about it.
+ * The "tank" input is zero-based.
+ */
+void setHeatRelay(int tank, boolean state) {
+  if (tank < 4) {
+    digitalWrite(HeaterRelay[tank], state);
+  } else if (state) {
+    bitSet(shiftRegByte, HeaterRelayShift[tank - 4]);
+    updateShiftRegister();
+  } else {
+    bitClear(shiftRegByte, HeaterRelayShift[tank - 4]);
+    updateShiftRegister();
+  }
+  strcpy(RelayStateStr[i], state ? "HTR" : "OFF");
+
+}
+void setChillRelay(int tank, boolean state) {
+  if (tank < 4) {
+    digitalWrite(ChillRelay[tank], state);
+  } else if (state) {
+    bitSet(shiftRegByte, ChillRelayShift[tank - 4]);
+    updateShiftRegister();
+  } else {
+    bitClear(shiftRegByte, ChillRelayShift[tank - 4]);
+    updateShiftRegister();
+  }
+  strcpy(RelayStateStr[i], state ? "CHL" : "OFF");
+
 }
 
 // This was originally just for turning off heating and cooling, but in COLDWATER we also
 // check lights here.
 void updateRelays() {
-  for (i=0; i<NT; i++) {
-    // We originally checked for tempOutput < 0, but that is never the case
-    // now that SetOutputLimits is never called.  tempOutput ranges from 0.0 to 255.0
-    if (tempOutput[i] < 0) { //Chilling
+  for (i = 0; i < NT; i++) {
+    // Note that controlOutput is on a scale of +/- 10000, where 10000 indicates maximum heating.
+    // tempInput is in degrees C.  It is a possibly adjusted version of the sensor temperature output.
+    // Below, always have "OFF" lines before "ON" since the set*Relay calls set the state string.
+    if (controlOutput[i] < 0) {  // Chilling
+      setHeatRelay(i, RELAY_OFF);
       if (tempInput[i] > setPoint[i] - chillOffset) {
-        digitalWrite(ChillRelay[i], RELAY_ON);
-        digitalWrite(HeaterRelay[i], RELAY_OFF);
-        strcpy(RelayStateStr[i], "CHL");
+        setChillRelay(i, RELAY_ON);
+      } else {
+        setChillRelay(i, RELAY_OFF);
       }
-      else {
-        digitalWrite(ChillRelay[i], RELAY_OFF);
-        digitalWrite(HeaterRelay[i], RELAY_OFF);
-        strcpy(RelayStateStr[i], "OFF");
-      }
-    } else { //Heating
-      if (tempOutput[i] > 0.0) {
+    } else {  //Heating
+      setChillRelay(i, RELAY_OFF);
+      if (controlOutput[i] > 0.0) {
         if (tempInput[i] > setPoint[i] - chillOffset) {
-          digitalWrite(HeaterRelay[i], RELAY_ON);
-          digitalWrite(ChillRelay[i], RELAY_ON);
-          strcpy(RelayStateStr[i], "HTR");
+          setHeatRelay(i, RELAY_OFF);
+        } else {
+          setHeatRelay(i, RELAY_ON);
         }
-        else {
-          digitalWrite(HeaterRelay[i], RELAY_ON);
-          digitalWrite(ChillRelay[i], RELAY_OFF);
-          strcpy(RelayStateStr[i], "HTR");
-        }
-      }
-      else {
+      } else {  // controlOutput == 0
         if (tempInput[i] > setPoint[i] - chillOffset) {
-          digitalWrite(HeaterRelay[i], RELAY_ON);
-          digitalWrite(ChillRelay[i], RELAY_ON);
-          strcpy(RelayStateStr[i], "HTR");
-        }
-        else {
-          digitalWrite(HeaterRelay[i], RELAY_OFF);
-          digitalWrite(ChillRelay[i], RELAY_ON);
-          strcpy(RelayStateStr[i], "OFF");
+          setHeatRelay(i, RELAY_OFF);
+        } else {
+          setHeatRelay(i, RELAY_ON);
         }
       }
     }
@@ -157,7 +162,7 @@ void updateRelays() {
     } else {
       digitalWrite(LightRelay[i], RELAY_OFF);
     }
-#endif // COLDWATER
+#endif  // COLDWATER
   }
 }
 
@@ -168,16 +173,15 @@ void updateRelays() {
  * 'shiftOut' to shift out contents of variable shiftRegByte
  *  before putting the 'latchPin' high again.
  */
-void updateShiftRegister()
-{
-   //Serial.printf("Setting relays with byte %d \n",shiftRegByte);
+void updateShiftRegister() {
+  //Serial.printf("Setting relays with byte %d \n",shiftRegByte);
 
-   digitalWrite(LATCH_PIN, LOW);
-   // shiftOut on the ESP32 is too fast for the chip!  This
-   // has enough delays to make it work.
-   //MYshiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, shiftRegByte);
-   MYshiftOut(DATA_PIN, CLOCK_PIN, MSBFIRST, shiftRegByte);
-   digitalWrite(LATCH_PIN, HIGH);
+  digitalWrite(LATCH_PIN, LOW);
+  // shiftOut on the ESP32 is too fast for the chip!  This
+  // has enough delays to make it work.
+  //MYshiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, shiftRegByte);
+  MYshiftOut(DATA_PIN, CLOCK_PIN, MSBFIRST, shiftRegByte);
+  digitalWrite(LATCH_PIN, HIGH);
 }
 
 /*
@@ -185,13 +189,12 @@ void updateShiftRegister()
  * digitalWrite() is new, as well as the two delayMicroseconds() calls.  Those account
  * for the fact that the ESP32 clock is too fast for the 74HC595.
  */
-void MYshiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val)
-{
+void MYshiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val) {
   uint8_t i;
 
   digitalWrite(clockPin, LOW);
 
-  for (i = 0; i < 8; i++)  {
+  for (i = 0; i < 8; i++) {
     if (bitOrder == LSBFIRST) {
       digitalWrite(dataPin, val & 1);
       val >>= 1;
@@ -200,9 +203,9 @@ void MYshiftOut(uint8_t dataPin, uint8_t clockPin, uint8_t bitOrder, uint8_t val
       val <<= 1;
     }
 
-    delayMicroseconds(10); 
+    delayMicroseconds(10);
     digitalWrite(clockPin, HIGH);
-    delayMicroseconds(10); 
+    delayMicroseconds(10);
     digitalWrite(clockPin, LOW);
   }
 }

@@ -1,5 +1,5 @@
 #define NT 4 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.
-#define RELAY_PAUSE 100 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
+#define RELAY_PAUSE 2000 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
 
 // The original CBASS from the Barshis lab uses Iceprobe chillers.
 // The Logan lab modifications use moving cold water, and add light controls.
@@ -9,7 +9,7 @@
 // address or it can create its own network and act as its own WiFi access point.
 #define WIFIAP 1
 #define WIFISTATION 2
-#define WIFIMODE 2    // Choose one of the two above
+#define WIFIMODE WIFISTATION    // Choose one of the two above
 
 #define MAGICWORD "Auckland"
 
@@ -44,28 +44,29 @@ const double TANK_TEMP_CORRECTION[] = {0, 0, 0, 0, 0, 0, 0, 0}; // Is a temperat
 #define KI 10//KP/100//27417.54//240 // March 20 IN FIELD - with 1 deg steps, no momentum to take past P control, so doubled I. (10->40)
 #define KD 1000//40  //
 
+// Most relays are on when sent "1", so that is the default.  Switch the 1 and 0 if you
+// have "normally on" relays.
 #define RELAY_ON 1
 #define RELAY_OFF 0
 
-// Arduino pin numbers for relays.
+// Arduino pin numbers for relays for tanks 1 to 4.
 // The integers correspond to the CBASS-R v 1.2 schematic.
 const int HeaterRelay[] = {17, 18, 19, 20}; // not mapped automatically: {D17, D18, D19, D20};
 
-
-// For now, duplicate the DB9 signals on the second connector
-// to be sure the shift register code is good.  Later assign them
-// as up to 8 tanks of heat/chill or as Logan-style controls.
-const byte HeaterRelayShift[] = {1, 2, 3, 4};  // These are the bit location in the control
-const byte ChillRelayShift[] = {5, 6, 7, 8};   // byte.  The pin numbers on the DB9 will be 1-4 and 6-9.
+// Tanks 5-8, if they exist, are controlled by a shift register, so instead
+// of pin numbers we associated tanks with bits 1-8.  Be aware that locations
+// 0-3 in the arrays correspond to tanks 5-8. 
+const byte HeaterRelayShift[] = {0, 1, 2, 3};  // These are the bit location in the control
+const byte ChillRelayShift[] = {4, 5, 6, 7};   // byte.  The pin numbers on the DB9 will be 1-4 and 6-9.
 
 
 #ifdef COLDWATER
 // TODO: replace relays 9-16 with shift register commands.
-const int ChillRelay[] = {40, 38, 36, 34}; 
-const int LightRelay[] = {22, 23, 24, 25}; 
+const int ChillRelay[] = {0, 1, 2, 3};   // Bits, not pins!
+const int LightRelay[] = {23, 6, 24, 2}; 
 const short MAX_LIGHT_STEPS = 4; // typically we have only 2 for sunrise and sunset
 #else
-const int ChillRelay[] = {18, 6, 24, 2}; // not mapped automatically: {A6, D6, A7, D2}
+const int ChillRelay[] = {23, 6, 24, 2}; // not mapped automatically: {A6, D6, A7, D2}
 
 #endif
 

@@ -128,10 +128,12 @@ File32 logFile;
 boolean logPaused = false;
 unsigned long startPause = 0;
 // Formerly "printDate" No spaces or commas.  Otherwise just something that gets logged.
-String logLabel = "CBASS-32";
+String logLabel = "CBASS-32z";
 
 // Storage for the characters of keyword while reading Settings.ini.
-const byte BUFMAX = 16; // INTERP is the longest keyword for now.
+// Now expanded from 16 bytes to 128 so it can be used for longer 
+// messages in other places.
+const byte BUFMAX = 128; // INTERP is the longest keyword for now.
 char iniBuffer[BUFMAX];
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
@@ -216,11 +218,13 @@ void setup()
   startDisplay();             // TFT display
   Serial.println("\n===== Booting CBASS-32 =====");
   Serial.printf("Running on core %d.\n", xPortGetCoreID());
+  tftMessage("    Less wiring,\n    more science!");
 
   clockInit();  // Keep this before any use of the clock for logging or ramps.
   bootTime = gettime();
 
   // Start the filesystem for SD card access.
+  tftMessage("Starting file systems.");
   SDinit();                   // SD card
 
 
@@ -231,8 +235,11 @@ void setup()
   }
 
   // Start WiFi and the web server
+  sprintf(iniBuffer, "Connecting WiFi to\n %s.", ssid);
+  tftMessage(iniBuffer);
   myIP = connectWiFi();
   esp_task_wdt_reset();
+  tftMessage("Defining web pages");
   defineWebCallbacks();
   server.begin();
 

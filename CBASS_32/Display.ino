@@ -12,6 +12,31 @@ void startDisplay() {
 }
 
 /**
+ * This is meant for status messages during startup which will
+ * stay on the screen until the next step or error.
+ * The "pass" static variable allows subsequent lines to stack.
+ */
+void tftMessage(const char* msg) {
+  static int pass = 0;
+  if (pass == 0) {
+    tft.fillScreen(tft.color565(0, 128, 0));
+    tft.setCursor(0, 0);
+  }
+
+  tft.setTextColor(WHITE);
+  //tft.setCursor(0, LINEHEIGHT3*pass);
+  pass = (pass > 5) ? 0 : pass + 1;
+  // Add code to break the string if it is longer than one line?
+  // For now:
+  if (strlen(msg) > 16) {
+    tft.setTextSize(2);
+  } else {
+    tft.setTextSize(3);
+  }
+  tft.println(msg);
+}
+
+/**
  * Put a message on the display and Serial monitor, and then
  * wait long enough to trigger a reboot.  Note that the argument
  * must be something like F("My message").

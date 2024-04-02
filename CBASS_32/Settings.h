@@ -1,5 +1,5 @@
 #define NT 4 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.
-#define RELAY_PAUSE 2000 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
+#define RELAY_PAUSE 5000 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
 
 // The original CBASS from the Barshis lab uses Iceprobe chillers.
 // The Logan lab modifications use moving cold water, and add light controls.
@@ -51,7 +51,7 @@ const double TANK_TEMP_CORRECTION[] = {0, 0, 0, 0, 0, 0, 0, 0}; // Is a temperat
 
 // Arduino pin numbers for relays for tanks 1 to 4.
 // The integers correspond to the CBASS-R v 1.2 schematic.
-const int HeaterRelay[] = {17, 18, 19, 20}; // not mapped automatically: {D17, D18, D19, D20};
+const int HeaterRelay[] = {A0, A1, D6, D2}; // A0=D17, A1=D18
 
 // Tanks 5-8, if they exist, are controlled by a shift register, so instead
 // of pin numbers we associated tanks with bits 1-8.  Be aware that locations
@@ -63,11 +63,10 @@ const byte ChillRelayShift[] = {4, 5, 6, 7};   // byte.  The pin numbers on the 
 #ifdef COLDWATER
 // TODO: replace relays 9-16 with shift register commands.
 const int ChillRelay[] = {0, 1, 2, 3};   // Bits, not pins!
-const int LightRelay[] = {23, 6, 24, 2}; 
+const int LightRelay[] = {A7, A6, A3, A2}; 
 const short MAX_LIGHT_STEPS = 4; // typically we have only 2 for sunrise and sunset
 #else
-const int ChillRelay[] = {23, 6, 24, 2}; // not mapped automatically: {A6, D6, A7, D2}
-
+const int ChillRelay[] = {A7, A6, A3, A2}; // Digital synonyms, A7 = D24, A6 = D23, A3 = D20 A2 = D19.
 #endif
 
 /* 
@@ -129,6 +128,7 @@ SdFat32 SDF;  // Example files use lower-case sd, but this fits old CBASS code.
 // For example, a light blue could be 0x1F1FFF in RGB, but 0x1F3A in 16-bit form. To convert
 // typical RBG given as a,b,c, use 2048*a*31/255 + 32*b*63/255 + c*31/255
 #define DARKGREEN 0x05ED  // Normal green is too pale on white. 
+#define DARKERGREEN 0x03F4  // Normal green is too pale on white. 
 #define LIGHTBLUE 0x1F3A  // Normal blue is too dark on black.
 // Easier names for some of the colors in the ILI9341 header file.
 #define BLACK   ILI9341_BLACK

@@ -10,7 +10,7 @@ html {
   .fittwowide {
     width: 500px;
     height: 500px;
-    background-color: rgb(192, 128, 128);
+    /* background-color: rgb(192, 128, 128); */
 
   }
 }
@@ -18,8 +18,7 @@ html {
   .fittwowide {
     width: 98vmin;
     height: 98vmin;
-            background-color: rgb(128,128,192);
-
+    /* background-color: rgb(128,128,192); */
   }
 }
 
@@ -27,7 +26,6 @@ html {
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
-	
 	justify-content: space-around;
 }
 
@@ -83,12 +81,12 @@ th, td {
 	text-align: right;
 	border-bottom: 1px solid #ddd;
 }
-td:hover {cursor: pointer} 
+td:hover {cursor: pointer}
 tr:nth-child(even) {
 	background-color:#f3f3f3;
-} 
+}
 table {
-	border-collapse: collapse; 
-}  
+	border-collapse: collapse;
+}
 
 

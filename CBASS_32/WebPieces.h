@@ -7,18 +7,25 @@ const char varname[] PROGMEM = R"rawliteral(
 
 /* A list of links to other pages. Included this on most or all pages served.  */
 const char linkList[] PROGMEM = R"rawliteral(
-<div class="wrapper flex">
+<div class="wrapper">
+<b>Any Time</b><br/>
 <ul>
 <li><a href="/files">List files on SD.</a> </li>
 <li><a href="/Tchart.html">Monitor temperatures.</a></li>
+<li><a href="/About">About CBASS-32.</a></li>
+</ul>
+<b>Limit Use During Experiments</b><br/>
+<ul>
 <li><a href="/RampPlan">Manage ramp plan.</a></li>
 <li><a href="/SyncTime">Synchronize CBASS time to device.</a></li>
 <li><a href="/ResetRampPlan">Reset ramp plan to example values.</a></li>
 <li><a href="/LogManagement">Manage the log file.</a></li>
-<li><a href="/UploadPage">Upload any file.</a></li>
+~UPLOAD_LINK~
 <li><a href="/Reboot">Reboot CBASS.</a></li>
-<li><a href="/About">About CBASS-32.</a></li>
 </ul>
+Items in the lower section can change the experimental plan or delay logging.
+They will work during an expermental ramp, but best practice is to use them for 
+setup and then after the experiment for obtaining the log file.
 </div>
 )rawliteral";
 
@@ -72,12 +79,14 @@ Less wiring, more science!
 </body></html>
 )rawliteral";
 
+#ifdef ALLOW_UPLOADS
 const char uploadHTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" type="text/css" href="page.css" />  
   <title>File Upload</title>
   <script>
     function updateNewName() {
@@ -131,7 +140,7 @@ const char uploadHTML[] PROGMEM = R"rawliteral(
 </body>
 </html>
 )rawliteral";
-
+#endif
 
 const char dirListHTML[] PROGMEM = R"rawliteral(
   <html><head><title>~TITLE~</title>
@@ -213,6 +222,7 @@ const char logHTML2[] PROGMEM = R"rawliteral(
 <head>
 	<title>~TITLE~</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="page.css" />
   <style>
     button {
       background: none!important;
@@ -300,6 +310,7 @@ const char syncTime[] PROGMEM = R"rawliteral(
 <head>
 	<title>~TITLE~</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="page.css" />  
 </head>
 <body>
 <div id="message" style="color:red;">~RESET_WARNING~</div>

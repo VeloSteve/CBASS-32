@@ -1,5 +1,9 @@
 Files in this directory (/htdocs) are meant to be served from the 
-CBASS-32 internal web server.  The come in several categories.
+CBASS-32 internal web server.  On CBASS-32 they are served from an
+internal filesystem, not direct from the microSD card.  Therefore,
+any changes must be followed by a run of SPIFFS_upload.
+
+The files come in several categories.
 
 1) plotly.js is a third-party library released under license.  Please see
    their license file in this directory (PLOTLY_LICENSE.TXT).

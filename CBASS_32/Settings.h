@@ -98,22 +98,15 @@ const int ChillRelay[] = {A7, A6, A3, A2}; // Digital synonyms, A7 = D24, A6 = D
 // SdFat has more options than SD.h.  This gives a reasonable set of defaults.
 #define SD_FAT_TYPE 1             // 1 implies FAT16/FAT32
 #define SPI_CLOCK SD_SCK_MHZ(50)  // 50 is the max for an SD.  Set lower if there are problems.
-// Try to select the best SD card configuration.
-// TODO: ensure that we don't use dedicated mode since we share with the display.
-//#if HAS_SDIO_CLASS
-//#define SD_CONFIG SdioConfig(FIFO_SDIO)
-//#define XXXX 1111
-//#elif ENABLE_DEDICATED_SPI
-//#define SD_CONFIG SdSpiConfig(SD_CS, DEDICATED_SPI, SPI_CLOCK)
-//#define XXXX 2222
-//#else  // HAS_SDIO_CLASS
 #define SD_CONFIG SdSpiConfig(SD_CS, SHARED_SPI, SPI_CLOCK)
-//#define XXXX 3333
-//#endif  // HAS_SDIO_CLASS
 
 // For fat type 1, use
 SdFat32 SDF;  // Example files use lower-case sd, but this fits old CBASS code.
 //File32 file;  Files should be declared like this (not with just File).
+// Normally use "#undef" for ALLOW_UPLOADS because it is dangerous.  Only enable
+// with #define during develpment when you have to ability to remove and reconfigure
+// the SD card in case of a mistake.
+#undef ALLOW_UPLOADS
 
 // Display constants
 #define TFT_WIDTH 320

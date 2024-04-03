@@ -478,6 +478,7 @@ void defineWebCallbacks() {
   });
 
   // File upload
+#ifdef ALLOW_UPLOADS
   server.on("/UploadPage", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Sending upload page.");
     p_title = "File Upload";
@@ -485,9 +486,9 @@ void defineWebCallbacks() {
     response->addHeader("Server", "ESP Async Web Server");
     request->send(response);
   });
+#endif
 
-
-
+#ifdef ALLOW_UPLOADS
   server.on(
     "/Upload", HTTP_POST, [](AsyncWebServerRequest *request) {
       AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Upload successful!");
@@ -570,6 +571,7 @@ void defineWebCallbacks() {
         Serial.printf("UploadEnd: %s, %u B\n", fullPath.c_str(), index + len);
       }
     });
+#endif
 
   // About page
   server.on("/About", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -1096,6 +1098,7 @@ String tableForNT() {
  * include root, the first level of subdirectories, and "new", which will accept a
  * typed name to be placed under root.
  */
+#ifdef ALLOW_UPLOADS
 String directoryInput() {
   // dirPath is a global containing the directory to list.
   Serial.print("In directoryInput.\n");
@@ -1144,6 +1147,7 @@ String directoryInput() {
   return rString;
 
 }
+#endif
 
 /**
  * This function simply returns the current CBASS date and time.
@@ -1177,8 +1181,12 @@ String processor(const String &var) {
   else if (var == "IP") return myIP.toString();
   else if (var == "TABLE_NT") return tableForNT();
   else if (var == "DATETIME") return showDateTime();
+#ifdef ALLOW_UPLOADS
   else if (var == "DIRECTORY_CHOICE") return directoryInput();
-
+  else if (var == "UPLOAD_LINK") return String("<li><a href=\"/UploadPage\">Upload any file.</a></li>");
+#else
+  else if (var == "UPLOAD_LINK" || var == "DIRECTORY_CHOICE")   return String("");
+#endif
   // If the whole if-else falls through return an empty String.
   return String();
 }

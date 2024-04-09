@@ -128,7 +128,7 @@ File32 logFile;
 boolean logPaused = false;
 unsigned long startPause = 0;
 // Formerly "printDate" No spaces or commas.  Otherwise just something that gets logged.
-String logLabel = "CBASS-32z";
+String logLabel = "CBASS-32";
 
 // Storage for the characters of keyword while reading Settings.ini.
 // Now expanded from 16 bytes to 128 so it can be used for longer 

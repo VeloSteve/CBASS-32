@@ -22,7 +22,6 @@
 
 #include <SD.h>
 #define SD_CS D5
-#include "WebPieces.h"
 
 void deleteFile(fs::FS &fs, const char * path){
     Serial.printf("Deleting file: %s\r\n", path);

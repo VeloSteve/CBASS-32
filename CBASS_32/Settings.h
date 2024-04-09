@@ -20,10 +20,10 @@
     const char *password = "1234abcd";
 #else
     // Credentials of an existing network.
-    //const char *ssid = "Anthozoa";
-    //const char *password = "16391727";
-    const char *ssid = "BirdDino";
-    const char *password = "1Milpitas";
+    const char *ssid = "Anthozoa";
+    const char *password = "16391727";
+    //const char *ssid = "BirdDino";
+    //const char *password = "1Milpitas";
 
 #endif
 

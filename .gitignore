@@ -35,3 +35,7 @@
 *.swp
 *.un~
 *.ino~
+*.TXT~
+*.css~
+*.js~
+.gitignore~

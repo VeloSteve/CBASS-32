@@ -57,195 +57,127 @@ void checkSD(const char* txt) {
 }
 
 /**
-   Read the content of a settings file.  Lines can be comments, ramp points, or key-value pairs as follows:
+ * Read the ramp plan one line at a time.  This should be easier than the old
+ * method.  It will take more memory, but we can afford that now.
+ * Be sure to account for cases where NT has changed since Settings.ini was
+ * written.
+ * Lines can be comments, ramp points, or key-value pairs as follows:
 
   // A comment - must start at the beginning of a line
-  3:00 30 31.1 32.123 21
-  START 14:30
-  INTERP LINEAR|STEP
+START 14:30
+INTERP LINEAR|STEP
+// START, if provided, causes ramp times to be interpreted as relative to that time.  For example
+START 15:00
+0:00 30 30 30 30
+3:00 30 30 33 33
 
-   START, if provided, causes ramp times to be interpreted as relative to that time.  For example
-  START 15:00
-  0:00 30 30 30 30
-  3:00 30 30 33 33
-   Means to have all tanks at 30 degrees at 3 PM and ramp tanks 3 and 4 to 33 degrees at 6 PM.  Times
-   not falling within the range specified in ramp steps will have a target temperature equal to the last step.
-   If INTERP is LINEAR temperatures will be interpolated between the two times.  If STEP, temperatures
-   will stay at 30 until 6 PM and then attempt to jump to 33 degrees.  STEP is only for backward
-   compatibility.  LINEAR is the default as of 25 Apr 2022.
-*/
+  * The lines above mean to have all tanks at 30 degrees at 3 PM and ramp tanks 3 and 4 to 33 degrees by 6 PM.
+  * Times not falling within the range specified in ramp steps will have a target temperature equal to the last step.
+  * If INTERP is LINEAR temperatures will be interpolated between the two times.  If STEP, temperatures
+  * will stay at 30 until 6 PM and then attempt to jump to 33 degrees.  STEP is only for backward
+  * compatibility.  LINEAR is the default as of 25 Apr 2022.
+  * 
+  * These are the only two interpolation options, but something like a cubic spline could be added
+  * for smooth simulation of diurnal variations.
+  */
 void readRampPlan() {
-  Serial.println("Reading ramp plan");
-  rampSteps = 0;
-  // State machine:
-  const byte ID = 0;      // Identifying what type of line this is.
-  const byte KEY = 1;     // Keyword such as START or INTERP
-  const byte TEMP = 2;    // Reading temperature as an integer or decimal (not scientific notation)
-  const byte START = 4;   // Reading start time
-  const byte INTERP = 5;  // Read interpolation style.  For now just LINEAR or STEP, setting a boolean.
-  const byte NEXT = 7;    // Going to the start of the next line, ignoring anything before.
-  byte state = 0;
-  byte tempCount = 0;
+  int maxLine = 128;
+  char lineBuffer[maxLine+1];
+  char *lb = lineBuffer;
+  int nRead, nParse, pos, hh, mm;
+  double tempRead;
+  int tank = 0;
+  boolean ntFail = false;
+  int upTo8[8];  // Read this many temperatures if in the file, then check against NT.
   if (SDF.exists("/Settings.ini")) {
     Serial.println("The ramp plan exists.");
   } else {
     if (!SDF.exists("/")) {
       Serial.println("and root directory does not exist!!");
       fatalError(F("SD has no root directory!!"));
-      while (1)
-        ;
     }
     fatalError(F("---ERROR--- No ramp plan file (/Settings.ini)!"));
   }
   settingsFile = SDF.open("/Settings.ini", O_RDONLY);
-  char c;
   while (settingsFile.available()) {
-    c = settingsFile.read();
-    Serial.print(c);
-    switch (state) {
-      case ID:
-        // Valid characters are a letter (of a keyword), digit of a number, slash, or whitespace
-        if (c == '/') {
-          state = NEXT;
-        } else if (isDigit(c)) {
-          // Time at the start of a line must be the beginning of a ramp point (typically 5 values)
-          // Check that there is space to store a new step.
-          if (rampSteps >= MAX_RAMP_STEPS) {
-            settingsFile.close();
-
-            fatalError(F("Not enough ramp steps allowed!  Increase MAX_RAMP_STEPS in Settings.ini"));
-            return;
-          }
-          rampMinutes[rampSteps] = timeInMinutes(c);
-          state = TEMP;
-          tempCount = 0;
-        } else if (isSpace(c)) {
-          state = ID;  // ignore space or tab, keep going
-        } else if (isAlpha(c)) {
-          state = KEY;
-          fillBuffer(c);
-          if (strcmp(iniBuffer, "START") == 0) {
-            state = START;
-          } else if (strcmp(iniBuffer, "INTERP") == 0) {
-            state = INTERP;
-          } else {
-            Serial.print("---ERROR invalid keyword in settings--->");
-            Serial.print(iniBuffer);
-            Serial.println("<");
-            settingsFile.close();
-
-            fatalError(F("Invalid keyword in Settings.ini"));
-          }
-        } else {
-          Serial.print("---ERROR in settings.txt.  Invalid line with 0x");
-          Serial.print(c, HEX);
-          Serial.println("---");
-          settingsFile.close();
-          fatalError(F("Character is not /, space, alphanumeric or digit in settings!"));
-        }
-        break;
-
-      case START:
-        // Get a start time or fail.
-        if (isSpace(c)) break;  // keep looking
-        if (isDigit(c)) {
-          relativeStartTime = timeInMinutes(c);
-          relativeStart = true;
-          state = NEXT;
-          Serial.print("Relative start time = ");
-          Serial.println(relativeStartTime);
-        } else {
-          Serial.print("---ERROR invalid character in start time >");
-          Serial.print(c);
-          Serial.println("<");
-          settingsFile.close();
-
-          fatalError(F("Bad time value in Settings.ini"));
-        }
-        break;
-      case INTERP:
-        // Value should be LINEAR or STEP.  Maybe CUBIC in the future.
-        if (isSpace(c) || c == ',') break;  // keep looking
-        if (isAlpha(c)) {
-          fillBuffer(c);
-          if (strcmp(iniBuffer, "LINEAR") == 0) {
-            interpolateT = true;
-            state = NEXT;
-          } else if (strcmp(iniBuffer, "STEP") == 0) {
-            interpolateT = false;  // The default
-            state = NEXT;
-          } else {
-            Serial.print("---ERROR invalid value in INTERP settings--->");
-            Serial.print(iniBuffer);
-            Serial.println("<");
-            settingsFile.close();
-
-            fatalError(F("Bad INTERP parameter"));
-          }
-
-        } else {
-          Serial.print("---ERROR in settings.txt--- INTERP type needed here. Got ");
-          Serial.println(c);
-          settingsFile.close();
-
-          fatalError(F("Missing INTERP parameter"));
-        }
-        break;
-      case TEMP:
-        // Get a temperature or fail.  Repeat until we have exactly NT values.
-        if (isSpace(c) || c == ',') break;  // keep looking
-        if (isDigit(c)) {
-          // We are on the first digit of a temperature.  tempInHundredths reads it.
-          rampHundredths[tempCount++][rampSteps] = tempInHundredths(c);
-          // There can be many lines, taking more than 8 seconds to parse (at least with diagnostics on) so:
-          esp_task_wdt_reset();
-        } else {
-          Serial.print("---ERROR in settings.txt--- Temperature needed here. Got c = ");
-          Serial.println(c);
-          settingsFile.close();
-
-          fatalError(F("Incomplete ramp line."));
-        }
-        if (tempCount == NT) {
-          tempCount = 0;
-          rampSteps++;
-          if (rampSteps > MAX_RAMP_STEPS) {
-            settingsFile.close();
-
-            fatalError(F("NOT enough ramp steps allowed!  Increase MAX_RAMP_STEPS in Settings.ini"));
-            return;
-          }
-          state = NEXT;
-        }
-        break;
-      case NEXT:
-        // Consume everything until any linefeed or characters have been removed, ready for  new line.
-        if (c == 10 || c == 13) {  // LF or CR
-          // In case we have CR and LF consume the second one.
-          c = settingsFile.peek();
-          if (c == 10 || c == 13) {
-            c = settingsFile.read();
-          }
-          state = ID;
-        }
-        break;
-      default:
-        Serial.println("---ERROR IN SETTINGS LOGIC---");
+    nRead = settingsFile.readBytesUntil('\n', lineBuffer, maxLine);  // One line is now in the buffer.
+    lineBuffer[max(0, nRead)] = 0;  // null terminate the line!
+    if (nRead == 0 || lineBuffer[0] == '/') {
+      ;  // an empty line or comment, move on.
+    } else if (!strncmp(lineBuffer, "START", 5)) {
+      // The line should contain a start time after START
+      nParse = sscanf(lineBuffer + 5, "%d:%d", &hh, &mm);
+      if (nParse != 2) {
         settingsFile.close();
+        fatalError(F("Invalid START time in Settings.ini"));
+      } else if (hh < 0 || hh > 23) {
+        settingsFile.close();
+        fatalError(F("START time hour must be from 0 to 23."));
+      } else if (mm < 0 || hh > 59) {
+        settingsFile.close();
+        fatalError(F("START time minutes must be from 0 to 59."));
+      }
+      relativeStartTime = hh * 60 + mm;
+      relativeStart = true;
+    } else if (!strncmp(lineBuffer, "INTERP", 6)) {
+      pos = 6;
+      while (isSpace(lineBuffer[pos])) pos++;
+      if (!strncmp(lineBuffer + pos, "LINEAR", 6)) {
+        interpolateT = true;
+      } else if (!strncmp(lineBuffer + pos, "STEP", 4)) {
+        interpolateT = true;
+      } else {
+        settingsFile.close();
+        fatalError(F("Unsupported interpolation option.  Must be LINEAR or STEP"));
+      }
+    } else if (isDigit(lineBuffer[0])) {
+      // 07:00       26.00  26.00  26.00  26.00	24.0
+      // Time and temperature lines (and only such lines) should start with a digit.
+      // A time is required, ideally followed by NT temperatures, but handle the case
+      // where the number doesn't match!
+      nParse = sscanf(lineBuffer, "%d:%d", &hh, &mm);
+      //Serial.printf("On temp line got %d values, %d and %d\n", nParse, hh, mm);
 
-        fatalError(F("Bad settings logic"));
+      rampMinutes[rampSteps] = hh * 60 + mm;
+      // There are ways to use sscanf in a loop, but strtok seems nicer here.
+      char* token;
+      token = strtok(lineBuffer, " \t");  // the time - already handled
+      token = strtok(NULL, " \t");        // first temperature in same line (NULL)
+      tank = 0;
+      while (token != NULL) {
+        if (tank < NT) {
+          sscanf(token, "%lf", &tempRead);
+          //Serial.printf("Scanned temp as %lf for tank %d line %d\n", tempRead, tank, rampSteps);
+          rampHundredths[tank++][rampSteps] = round(tempRead * 100);
+          //Serial.printf("%d hundredths.\n", rampHundredths[tank-1][rampSteps]);
+        } else {
+          Serial.printf("WARNING: Ignoring extra tank %d in Settings.ini with NT = %d\n", tank + 1, NT);
+        }
+        token = strtok(NULL, " \t");
+      }
+      if (tank < NT) {
+        // Settings don't match the number of tanks, but don't stop until the available
+        // data is read so it can be edited rather than starting from scratch.
+        ntFail = true;
+      }
+      rampSteps++;
+    } else {
+      settingsFile.close();
+      Serial.printf("Bad line: >%s<\n", lineBuffer);
+      fatalError(F("Settings.ini has an illegal line.  Edit (/RampPlan) or reset (/ResetRampPlan)."));
     }
   }
-  // It is okay to end in the NEXT or ID state, but otherwise we are mid-line and it's an error.
-  if (state != NEXT && state != ID) {
-    Serial.print("---ERROR out of settings date with step incomplete.  state = ");
-    Serial.println(state);
-    settingsFile.close();
-    fatalError(F("Bad settings line"));
-  }
-
   settingsFile.close();
-  printRampPlan();
+  if (ntFail) {
+    // If the user specified NT tanks and the are less than NT in the plan, an experiment
+    // could be ruined.  Consider this a fatal error.  Try to keep the web server
+    // running so this can be addressed without pulling the card.
+    Serial.printf("Settings.ini supports %d tanks, but CBASS is configured for %d\n", tank, NT);
+    Serial.printf("Use the controls at http://%s/RampPlan or http://%s/ResetRampPlan\n", myIP.toString().c_str(), myIP.toString().c_str());
+    fatalError(F("Settings.ini has fewer temperatures than you have tanks.  Edit (/RampPlan), reset (/ResetRampPlan), or adust NT."));
+  } else {
+    printRampPlan();
+  }
 }
 
 // If no second argument, expect a keyword, not a pin.
@@ -366,6 +298,7 @@ int tempInHundredths(byte c) {
 }
 
 void printRampPlan() {
+  Serial.printf("%d tanks and %d ramp lines.\n", NT, rampSteps);
   printBoth("Temperature Ramp Plan");
   printlnBoth();
   if (relativeStart) {
@@ -383,7 +316,7 @@ void printRampPlan() {
     printAsHM(rampMinutes[k]);
     for (int j = 0; j < NT; j++) {
       printBoth("   ");
-      printBoth(((double)(rampHundredths[j][k]) / 100.0), 2);
+      printBoth(((double)rampHundredths[j][k]) / 100.0, 2);
     }
     printlnBoth();
   }
@@ -691,7 +624,7 @@ bool rewriteSettingsINI() {
 
 /**
  * Write a generic Settings.ini, archiving anything which was there before.
- * This is mainly or a new SD card or after recovery from a serious error.
+ * This is mainly for a new SD card or after recovery from a serious error.
  */
 bool resetSettings() {
   if (SDF.exists("/Settings.ini")) {
@@ -983,4 +916,3 @@ void printlnBoth() {
 //  if (logFile) logFile.print(n, f);
 //  Serial.print(n, f);
 //}
-

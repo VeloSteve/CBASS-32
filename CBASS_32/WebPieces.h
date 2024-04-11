@@ -24,7 +24,7 @@ const char linkList[] PROGMEM = R"rawliteral(
 <li><a href="/Reboot">Reboot CBASS.</a></li>
 </ul>
 Items in the lower section can change the experimental plan or delay logging.
-They will work during an expermental ramp, but best practice is to use them for 
+They will work during an experimental ramp, but best practice is to use them for 
 setup and then after the experiment for obtaining the log file.
 </div>
 )rawliteral";
@@ -552,7 +552,37 @@ function validateCellTime(cellElement) {
   }
 }
 
-// Validate each temperature cell after editing
+/* Take a single value and determine whether it is a valid
+ * ramp temperature. This does not modify anything.
+ */
+function validateTemperature(val) {
+  // console.log("Validating a single temperature value >" + val + "<");
+  if (!val) {
+    // No value
+    console.log("no value");
+    return false;
+  } else if (!Number.isInteger(+val) && !Number.isFinite(+val)) { // + signs required so it make it a number and fails on extra characters
+    console.log("not an integer or finite real");
+
+    // Not a number
+    return false;
+  } else if (val < 5 || val > 50) {
+    console.log("too extreme <-------------------------------------");
+
+    // Not a reasonable temperature
+    return false;
+  }
+  //console.log("Value checked as true.");
+  return true;
+}
+
+/*
+ * Validate the temperature of a given cell and toggle its background color
+ * as needed. 
+ * Then if the cell is okay and the send button is disabled check all cells
+ * to see whether we can enable the button.
+ * Be careful that this isn't calling recursively.
+ */
 function validateCellTemp(cellElement) {
   if (validateTemperature(cellElement.innerText.trim())) {
     cellElement.classList.remove('error');
@@ -561,7 +591,6 @@ function validateCellTemp(cellElement) {
     cellElement.classList.add('error');
     cellElement.style.backgroundColor="#ff4444";
   }
-
   // Can we enable the send button?
   if (cellElement.classList.contains('error')) {
     // This alone is enough to disable the send button.
@@ -584,7 +613,6 @@ function validateCellTemp(cellElement) {
       }
     }
     updatePlot();  // Maybe only if things are okay, but we don't care about the button.
-
   }
 }
 
@@ -594,57 +622,41 @@ function validateTime(val) {
   return isValid;
 }
 
-function validateTemperature(val) {
-  console.log("Validating a single temperature value >" + val + "<");
-  if (!val) {
-    // No value
-    console.log("no value");
-    return false;
-  } else if (!Number.isInteger(+val) && !Number.isFinite(+val)) { // + signs required so it make it a number and fails on extra characters
-    console.log("not an integer or finite real");
-
-    // Not a number
-    return false;
-  } else if (val < 5 || val > 50) {
-    console.log("too extreme");
-
-    // Not a reasonable temperature
-    return false;
-  }
-  console.log("Value checked as true.");
-  return true;
-}
-
 /* Verify that all cells requiring a time or temperature contain one. */
 function cellsOkay()  {
   const table = document.getElementById('rampTable');
-
+  console.log("Checking cells for good values.");
   // Loop through rows and cells 
+  var rval = true;  // Validate all - do not exit after the first bad value.
   for (let row of table.rows) 
   {
       for(let cell of row.cells) 
       {
-        console.log("Looking at cell content " + cell.innerText);
+        //AAA console.log("Looking at cell content " + cell.innerText);
         if (cell.classList.contains("temperature") && !validateTemperature(cell.innerText)) {
-          cell.style.backgroundColor="#ff4444";  // Clear back to default
-          return false;
-        } else {
+    	  cell.classList.add('error');
+          cell.style.backgroundColor="#ff4444";  
+          rval = false;
+        } else if (cell.classList.contains("temperature")) {
           // Most cells will already be clear, but those in added lines benefit from this:
           cell.style.backgroundColor="";  // Clear back to default
         }
         if (cell.classList.contains("time") && !validateTime(cell.innerText)) {
-          cell.style.backgroundColor="#ff4444";  // Clear back to default
-          return false;
-        } else {
+          cell.style.backgroundColor="#ff8800";  
+          rval = false;
+        } else if (cell.classList.contains("time")) {
           // Most cells will already be clear, but those in added lines benefit from this:
           cell.style.backgroundColor="";  // Clear back to default
         }
       }
   }
+  // Should this depend on rval?
   updatePlot();
-  return true;
+  return rval;
 }
 
+// Check on load in case there are existing bad values, such as when Settings.ini doesn't match NT.
+window.onload = cellsOkay;
 )rawliteral";
 
 /* 

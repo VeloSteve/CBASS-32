@@ -29,6 +29,7 @@ void sendAsHM(unsigned int t, WiFiClient client);
 bool setNewStartTime(String queryString);
 int timeOrNegative(String s);
 void sendXY(AsyncResponseStream *rs);
+void sendXYHistory(AsyncResponseStream *rs);
 String sendFileInfo();
 void sendRampForm(AsyncResponseStream *rs);
 void sendAsHM(unsigned int t, AsyncResponseStream *rs);
@@ -280,9 +281,23 @@ void defineWebCallbacks() {
   // so we can just write to a stream.
   server.on("/currentT", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Sending latest Temps.");
-    AsyncResponseStream *response = request->beginResponseStream("text/csv");
+    //AsyncResponseStream *response = request->beginResponseStream("text/csv");
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
     response->addHeader("Server", "ESP CBASS-32");
     sendXY(response);
+
+    request->send(response);
+  });
+
+  // All stored temperature DataPoint values.
+  // This will typically be whatever has accumulated since the last reboot, or
+  // 6 hours, whichever is less.  No processor() call is needed
+  // so we can just write to a stream.
+  server.on("/runT", HTTP_GET, [](AsyncWebServerRequest *request) {
+    Serial.println("Sending temp history.");
+    AsyncResponseStream *response = request->beginResponseStream("application/json");
+    response->addHeader("Server", "ESP CBASS-32");
+    sendXYHistory(response);
 
     request->send(response);
   });
@@ -684,6 +699,7 @@ String rollLog() {
 /**
  * Send the latest temperature status in JSON format, for example
  * {"NT":[4],"timeval":[46],"CBASStod":["19:39:50"],"tempList":[0.0,0.0,0.0,0.0],"targetList":[32.0,27.0,36.0,38.0]}
+ * ISO 8601 format is used for the date and time.
  */
 void sendXY(AsyncResponseStream *rs) {
   // Temp checks fill this: tempInput[]
@@ -705,6 +721,16 @@ void sendXY(AsyncResponseStream *rs) {
     if (i < NT - 1) rs->print(",");
   }
   rs->println("]}");
+}
+
+/**
+ * Send out all accumulated temperature data points as JSON.  For now
+ * there's not outer JSON syntax, just a stream of JSON version of the data.
+ *
+ * This is meant to be called once when the graph page loads.
+ */
+void sendXYHistory(AsyncResponseStream *rs) {
+  for (int i=0; i<graphPoints.size(); i++) rs->print(dataPointToJSON(graphPoints[i])); 
 }
 
 /**
@@ -869,13 +895,14 @@ void sendRampForm(AsyncResponseStream *rs) {
   rs->println("<button id=\"sendbutton\" onclick=\"submitRampData()\" disabled>Update Data</button></div>");
   rs->print("<div id=\"rgraph\" class=\"wrapper flex\"></div>");
 
+  // This supports table operations and sends data to the server when the button is pushed.
+  rs->println("<script src=\"/tableScript.js\"></script>");
   // Add a graph!
   // Add the plotly javascript
   rs->print("<script src=\"plotly.js\" charset=\"utf-8\"></script>");
   // This uses plotly to display the ramp plan.
   rs->println("<script src=\"/rampPlan.js\"></script>");
-  // This supports table operations and sends data to the server when the button is pushed.
-  rs->println("<script src=\"/tableScript.js\"></script>");
+
 
   // Add the start time and magic word area.
   rs->println("<div class=\"wrapper flex\" id=\"tableextras\">");
@@ -1185,7 +1212,7 @@ String processor(const String &var) {
   else if (var == "DIRECTORY_CHOICE") return directoryInput();
   else if (var == "UPLOAD_LINK") return String("<li><a href=\"/UploadPage\">Upload any file.</a></li>");
 #else
-  else if (var == "UPLOAD_LINK" || var == "DIRECTORY_CHOICE")   return String("");
+  else if (var == "UPLOAD_LINK" || var == "DIRECTORY_CHOICE")   return String(" ");
 #endif
   // If the whole if-else falls through return an empty String.
   return String();
@@ -1207,4 +1234,60 @@ void pauseLogging(boolean a) {
     logPaused = false;
     tftPauseWarning(false);
   }
+}
+
+/*
+struct DataPoint
+{
+   DateTime time; 
+   double target[NT];
+   double actual[NT];
+};
+*/
+DataPoint makeDataPoint(DateTime t, double targ[], double a[]) {
+  DataPoint d;
+  d.time = t;
+  memcpy(&d.target, &targ[0], NT*sizeof(double));
+  memcpy(&d.actual, &a[0], NT*sizeof(double));
+
+  return d;
+}
+
+/**
+ * Convert a single datapoint to JSON for sending to the graphing page.
+ */
+String dataPointToJSON(DataPoint p) {
+  // Example output with silly temperatures
+  // {"NT":[4],"datetime":[2020-04-16T18:34:56],"Target":[1.0,2.0,3.0,4.0],"Actual":[0.0,0.0,0.0,0.0]}
+  // Without temps, 68 characters:
+  // {"NT":[4],"datetime":[2020-04-16T18:34:56],"Target":[],"Actual":[]}
+  // Using 12.34 format for temps and up to 8 tanks add 5*16 + 14 for the values and commas.  94 characters.
+  // Make the buffer 68 + 94 bytes, and round up for safety: 162 -> 200
+  char buf[200];
+  char fb[7];  // one formatted int, normally 5 characters plus a terminator.
+  sprintf(buf, "{\"NT\":[%d],\"datetime\":[%s],\"Target\":[", NT, p.time.timestamp().c_str());
+  int i;
+  for (i = 0; i < NT; i++) {
+    dtostrf(p.target[i], 5, 2, fb);
+    strcat(buf, fb);
+    if (i < NT - 1) strcat(buf, ",");
+  }
+  strcat(buf, "],\"Actual\":[");
+  for (i = 0; i < NT; i++) {
+    dtostrf(p.actual[i], 5, 2, fb);
+    strcat(buf, fb);
+    if (i < NT - 1) strcat(buf, ",");
+  }
+  strcat(buf, "]}");
+  return String(buf);
+}
+
+void dataPointPrint(DataPoint p) {
+  Serial.printf("%d tanks at %s %s\n", NT, getdate(p.time), gettime(p.time));
+  Serial.print("Target: ");
+  int i;
+  for (i = 0; i < NT; i++) Serial.printf(" %6.2f ", p.target[i]);
+  Serial.print("\nActual: ");
+  for (i = 0; i < NT; i++) Serial.printf(" %6.2f ", p.actual[i]);
+  Serial.println();
 }

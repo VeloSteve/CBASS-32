@@ -58,7 +58,7 @@
 #define FORMAT_SPIFFS_IF_FAILED true
 
 // CBASS settings and constants.
-#include "settings.h"
+#include "Settings.h"
 
 // Web server
 #include <ESPAsyncWebSrv.h>
@@ -109,7 +109,9 @@ void defineWebCallbacks();
 void checkSD(char* txt);
 void setupMessages();
 void pauseLogging(boolean a);
-
+DataPoint makeDataPoint(DateTime t, double targ[], double a[]);
+String dataPointToJSON(DataPoint p);
+void dataPointPrint(DataPoint p);
 
 // ===== Global variables are defined below. =====
 const int port = 80;
@@ -127,8 +129,7 @@ DateTime  t;
 File32 logFile;
 boolean logPaused = false;
 unsigned long startPause = 0;
-// Formerly "printDate" No spaces or commas.  Otherwise just something that gets logged.
-String logLabel = "CBASS-32";
+
 
 // Storage for the characters of keyword while reading Settings.ini.
 // Now expanded from 16 bytes to 128 so it can be used for longer 
@@ -170,9 +171,9 @@ unsigned int i;  // General use
 const int TPCwindow=10000;
 
 // Time Windows: Update LCD 2/sec; Serial (logging) 1/sec, Ramp Status 1/sec
-const unsigned int LCDwindow = 500;
-const unsigned int SERIALwindow = 5000;  // Default 1000; how often to log.
-unsigned int GRAPHwindow = 60000;
+const unsigned int LCDwindow = 1000;
+const unsigned int SERIALwindow = 15000;  // Default 1000; how often to log.
+unsigned int GRAPHwindow = 5000;
 
 const unsigned int serialHeaderPeriod = 10000; // Print header after this many lines.  Not useful for automated use.
 unsigned int SerialOutCount = serialHeaderPeriod + 1;  // Print at the top of any new log.
@@ -190,8 +191,12 @@ char RelayStateStr[NT][4]; // [number of entries][characters + null terminator]
 
 // A vector of PID Controllers which will be instantiated in setup().
 std::vector<PID> pids;
+// A vector of DataPoints for graphing.
+const int maxGraphPoints = (int)6*3600/(GRAPHwindow/1000); // Allow up to 6 hours of points!
+std::vector<DataPoint> graphPoints;
 
-
+// Formerly "printDate" No spaces or commas.  Otherwise just something that gets logged.
+String logLabel = "CBASS-32";
 
 //TimeKeepers
 unsigned long now_ms = millis(),SERIALt, LCDt, GRAPHt;
@@ -206,6 +211,11 @@ void setup()
     // Instantiate a PID on each pass, using the given arguments.  Append it to the vector
     pids.emplace_back(PID(&tempInput[i], &controlOutput[i], &setPoint[i], KP, KI, KD, DIRECT));
   }
+
+  // Learning point: the sketch will not load of the line below is active, even though
+  // it compiles with no trouble!  Fortunately, this line doesn't seem necessary.
+  //graphPoints.reserve(maxGraphPoints);
+
   // Start "reset if hung" watchdog timer. 8 seconds is the longest available interval.
   esp_task_wdt_init(WDT_TIMEOUT, true);
   esp_task_wdt_add(NULL);
@@ -216,7 +226,7 @@ void setup()
   esp_task_wdt_reset();
 
   startDisplay();             // TFT display
-  Serial.println("\n===== Booting CBASS-32 =====");
+  Serial.println("\n===== Booting CBASS-32 45=====");
   Serial.printf("Running on core %d.\n", xPortGetCoreID());
   tftMessage("    Less wiring,\n    more science!");
 
@@ -324,15 +334,15 @@ void loop()
   getLightState();
 #endif
 
-  // Remove the ifdef if we have other reasons to save the graphing file.  It's just a less
-  // detailed version of the main log.
+
   if (now_ms - GRAPHt > GRAPHwindow) {
-    checkTime();
-    // Save temperatures and targets in a log for graphing, independent of the main science data.
-    saveGraphTemps();
-    esp_task_wdt_reset();
+    if (graphPoints.size() >= maxGraphPoints) graphPoints.erase(graphPoints.begin());
+    graphPoints.emplace_back(makeDataPoint(t, setPoint, tempT));
+    Serial.printf("graphPoints size is now %d elements. Est. total bytes = %d Stack high water = %d.\n", 
+        graphPoints.size(), graphPoints.size()*sizeof(DataPoint) + sizeof(graphPoints), uxTaskGetStackHighWaterMark( NULL ));
     GRAPHt += GRAPHwindow;
   }
+
 
   // ***** UPDATE PIDs *****
   for (i=0; i<NT; i++) pids[i].Compute();
@@ -343,6 +353,9 @@ void loop()
 
   //***** UPDATE SERIAL MONITOR AND LOG *****
   if (now_ms - SERIALt > SERIALwindow) {
+    //DataPoint ddd = makeDataPoint(t, setPoint, tempT);
+    //dataPointPrint(ddd);
+    //Serial.println(dataPointToJSON(ddd));
     // Logging is skipped during certain web operations.
     if (!logPaused) {
       SerialReceive();

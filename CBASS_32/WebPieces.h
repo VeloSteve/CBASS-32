@@ -737,7 +737,6 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
   async function getData(TESTER) {
 
     let jjj;
-    // XXX IP needs to be dynamic in the future.
     const res = await fetch("http://~IP~/currentT");
     jjj = await res.json();
 

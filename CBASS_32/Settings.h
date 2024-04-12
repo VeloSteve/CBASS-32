@@ -1,5 +1,5 @@
 #define NT 4 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.
-#define RELAY_PAUSE 5000 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
+#define RELAY_PAUSE 1000 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
 
 // The original CBASS from the Barshis lab uses Iceprobe chillers.
 // The Logan lab modifications use moving cold water, and add light controls.
@@ -56,9 +56,10 @@ const int HeaterRelay[] = {A0, A1, D6, D2}; // A0=D17, A1=D18
 // Tanks 5-8, if they exist, are controlled by a shift register, so instead
 // of pin numbers we associated tanks with bits 1-8.  Be aware that locations
 // 0-3 in the arrays correspond to tanks 5-8. 
-const byte HeaterRelayShift[] = {0, 1, 2, 3};  // These are the bit location in the control
-const byte ChillRelayShift[] = {4, 5, 6, 7};   // byte.  The pin numbers on the DB9 will be 1-4 and 6-9.
-
+const byte HeaterRelayShift[] = {2, 4, 5, 0};  // These are the bit location in the control
+const byte ChillRelayShift[] = {7, 6, 3, 1};   // byte.  The pin numbers on the DB9 will be 1-4 and 6-9.
+// count 12 (expect chill) gives heater 3
+// count 13 (expect 3) gives heater 1
 
 #ifdef COLDWATER
 // TODO: replace relays 9-16 with shift register commands.
@@ -154,6 +155,14 @@ char addressSets[knownAddressSets][4][8] = {
     { 0x28,0x95,0xd1,0x95,0xf0,0x01,0x3c,0xe3 },
     { 0x28,0x7d,0xa1,0x95,0xf0,0x01,0x3c,0x06 }
   }
+};
+
+// Store collected time and temperature information together.
+struct DataPoint
+{
+   DateTime time; 
+   double target[NT];
+   double actual[NT];
 };
 
 // Keep this since it may be nice in a display, but comment to save memory until we need it.

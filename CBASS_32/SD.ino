@@ -102,6 +102,19 @@ void readRampPlan() {
   while (settingsFile.available()) {
     nRead = settingsFile.readBytesUntil('\n', lineBuffer, maxLine);  // One line is now in the buffer.
     lineBuffer[max(0, nRead)] = 0;  // null terminate the line!
+    // There MAY be a problem since lines edited in different ways could end with \n, \r, or both.
+    // To be safe, see if one of those remains in the buffer or the file and get rid of it.
+    // Note that some of these four cases may never occur, but until proven otherwise, they should be kept.
+    if (lineBuffer[nRead-1] == '\n' || lineBuffer[nRead-1] == '\r') {
+        lineBuffer[max(0, nRead-1)] = 0;  // null terminate on top of the extra character!
+    } else {
+        lineBuffer[max(0, nRead)] = 0;  // null terminate the line normally
+    }
+    // Now discard any leftover end of line in the file.  This also removes any empty next line, but that's fine.
+    while (settingsFile.peek() == '\n') settingsFile.read();
+    while (settingsFile.peek() == '\r') settingsFile.read();
+
+    Serial.printf("Read >%s<\n", lineBuffer);
     if (nRead == 0 || lineBuffer[0] == '/') {
       ;  // an empty line or comment, move on.
     } else if (!strncmp(lineBuffer, "START", 5)) {
@@ -501,6 +514,9 @@ bool rewriteSettingsINI() {
 
   Serial.println("\n== Starting to write modified settings.==\n");
 
+  // WARNING: for some reason mod.println() writes a "carriage return" instead
+  // of the usual "newline".  This can be avoided by using mod.print("\n") or a printf()
+
   if (relativeStart) {
     mod.print("// This file was modified via the web interface at ");
     // DDDDD
@@ -512,7 +528,8 @@ bool rewriteSettingsINI() {
     Serial.printf(" getdate gives >%s<", getdate().c_str());
     mod.print(getdate().c_str());
     mod.print("\n// Prior comments have been lost.  The previous file will be saved as ");
-    mod.println(newName);
+    mod.print(newName);
+    mod.print("\n");
     // DDDDD
     mod.flush();
     Serial.printf("In-progress file size is %d\n", mod.size());
@@ -565,7 +582,7 @@ bool rewriteSettingsINI() {
     mod.print("     T");
     mod.print(j + 1);
   }
-  mod.println();
+  mod.print("\n");
   for (short k = 0; k < rampSteps; k++) {
     int t = rampMinutes[k];
     if (t < 10 * 60) mod.print("0");
@@ -652,16 +669,16 @@ bool resetSettings() {
     int i;
     f.print("0:00");
     for (i = 0; i < NT; i++) f.printf("%5d", 24);
-    f.println();
+    f.print("\n");
     f.print("3:00");
     for (i = 0; i < NT; i++) f.printf("%5d", 28 + i);
-    f.println();
+    f.print("\n");
     f.print("6:00");
     for (i = 0; i < NT; i++) f.printf("%5d", 28 + i);
-    f.println();
+    f.print("\n");
     f.print("7:00");
     for (i = 0; i < NT; i++) f.printf("%5d", 24);
-    f.println();
+    f.print("\n");
     f.close();
     // Now refresh the arrays from the new file.
     readRampPlan();

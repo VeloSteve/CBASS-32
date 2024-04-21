@@ -3,7 +3,7 @@ const char varname[] PROGMEM = R"rawliteral(
 )rawliteral";
  */
 // Note that in many cases a placeholder in backticks is used, for example ~TITLE~.
-// This is replaced before sending as define in the process() function in Server.ino
+// This is replaced before sending as defined in the process() function in Server.ino
 
 /* A list of links to other pages. Included this on most or all pages served.  */
 const char linkList[] PROGMEM = R"rawliteral(
@@ -706,6 +706,7 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
 
 <script>
 	TESTER = document.getElementById('historyPlot');
+  var latest = -1; // Latest timestamp already plotted.
   var counter = 6;
   var data = [];
   var trace;
@@ -721,20 +722,115 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
 	tHistory = Plotly.newPlot( TESTER, data, {
 	margin: { t: 50 },
   title: 'Temperature History',
-  xaxis: {title: 'Seconds'},
+  xaxis: {title: 'Time of Day'},
   yaxis: {title: 'T, '+ String.fromCodePoint(176) + 'C'},  // Just pasting ° didn't work 176 gives the symbol and 8451 gives it with the C.
   responsive: true  // Resize when window resizes, so CSS can fit on different devices.
    } );
 
   // Get the first actual data point right away, later it will be repeated as defined by setInterval.
-  newXY = getData(TESTER);
-
+  getPoints(TESTER);
+  // Update every 10 seconds.
   setInterval(function() {
-    newXY = getData(TESTER);
+    getPoints(TESTER);
   }, 10000)
 
   // must be async to use await.
-  async function getData(TESTER) {
+  async function getPoints(TESTER) {
+
+    let jjj;
+    const res = await fetch("http://~IP~/runT?oldest=" + (latest+1));
+    jjj = await res.json();
+
+    // Input looks like
+    //  {"NT":4,"points":{"24307":{"datetime":"2024-04-12T08:38:28","target":[24.00,24.00,24.00,24.00],"actual":[22.13,22.56,22.06,22.44]},
+    //                    "29312":{"datetime":"2024-04-12T08:38:33","target":[24.00,24.00,24.00,24.00],"actual":[22.25,22.56,22.13,22.44]}}
+    //  }');
+
+    let pointCount = Object.keys(jjj.points).length;
+    console.log("Received " + pointCount + " points.  Latest was " + latest);
+
+    if (~NT~ != jjj.NT) {
+      document.getElementById('bbb').innerText="ERROR: NT in data (" + jjj.NT + ") != NT of this page (" + ~NT~ + ")";
+
+    } 
+
+    // Note that we have two categories of things to do. 
+    // 1) update the traces with all points received and update "latest"
+    // 2) update text on the page using only the last (most recent) point.
+
+    // === Update Traces ===
+    var data = [];
+    // Note that syntax like times = [][] is illegal in Javascript.  One level at a time!
+    // This is awkward.  We want lists of points per tank, but the data comes
+    // in with all the tank values for a time points.  We need to build the
+    // empty 2D array first, and then fill it.
+    // Fancy array-initialization code from https://stackoverflow.com/questions/3689903/how-to-create-a-2d-array-of-zeroes-in-javascript
+    let times = Array(jjj.NT).fill().map(() => Array(pointCount));
+    let temps = Array(jjj.NT).fill().map(() => Array(pointCount));
+    let n = 0;
+    for (var key in jjj.points) {
+      latest = parseInt(key);
+      const pt = jjj.points[key];
+      for (let i=0; i < jjj.NT; i++) {
+        //times[i][n] = latest
+        times[i][n] = pt.datetime;
+        temps[i][n] = parseFloat(pt.actual[i]);
+      }
+      n++;
+    }
+    data = {x:times, y:temps};
+
+    console.log("Extending traces");
+
+    //console.log(data);
+ 
+    // For a new plot with 2 lines we send x1 y1 x2 y2
+    // but to extend it's                  x2 x2 y1 y2!
+    // Each single item below could be multiple, if updating in batches.
+    /*
+    data = {x: [[newTime],[newTime],[newTime],[newTime]],
+	          y: [[newTemp[0]],[newTemp[1]],[newTemp[2]],[newTemp[3]]]
+           };
+     */
+    // Tried this funny dot notation - several variants never were accepted by plotly.
+    //    Plotly.extendTraces(TESTER, data, [[...Array(~NT~).keys()]], 40);
+    var listNT = new Array(~NT~);  // note that = [NT] would be an array of length 1 and value NT
+    for (let i=0; i < ~NT~; i++) {
+      listNT[i] = i;
+    }
+
+    // Last number is a point limit.  This should really be coordinated with the 
+    // number of points being generated, but for now assume a typical target of
+    // being able to plot one point per 5 seconds for 6 hours.
+    Plotly.extendTraces(TESTER, data, listNT, 6*3600/5);
+
+    // === Update text information ===
+    pt = jjj.points[latest];
+    document.getElementById('bbb').innerText=pt.actual;
+
+    let delta = 0.0;
+    for (let i=1; i <= ~NT~; i++) {
+      document.getElementById('temp' + i).innerHTML=pt.actual[i-1]; //jjj.tempList[i-1];
+      delta = parseFloat(pt.actual[i-1]) - parseFloat(pt.target[i-1]);
+      if (delta > 0.49) {
+        document.getElementById('temp' + i).style.backgroundColor="#FF8888";
+      } else if (delta < -0.49) {
+        document.getElementById('temp' + i).style.backgroundColor="AAAAFF";
+      } else {
+        document.getElementById('temp' + i).style.backgroundColor="#f8f8f8";
+      }
+      document.getElementById('set' + i).innerHTML=pt.target[i-1];
+    }
+
+    const now = new Date();
+    document.getElementById('cbassTime').innerText=`CBASS time: ${pt.datetime}`
+    document.getElementById('updateTime').innerText=`Last update: ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`
+
+  }
+
+  // must be async to use await.
+  /* Save until new method getPoints() is in place.
+  async function getPoint(TESTER) {
 
     let jjj;
     const res = await fetch("http://~IP~/currentT");
@@ -769,7 +865,6 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
 
     // Replace hardwired 4-tank code with variable NT tanks.
     var data = [];
-    var entry;
     var insideTime = [];
     var insideTemp = [];
     for (let i=0; i < ~NT~; i++) {
@@ -782,11 +877,11 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
     // For a new plot with 2 lines we send x1 y1 x2 y2
     // but to extend it's                  x2 x2 y1 y2!
     // Each single item below could be multiple, if updating in batches.
-    /*
-    data = {x: [[newTime],[newTime],[newTime],[newTime]],
-	          y: [[newTemp[0]],[newTemp[1]],[newTemp[2]],[newTemp[3]]]
-           };
-     */
+    
+    // data = {x: [[newTime],[newTime],[newTime],[newTime]],
+	  //         y: [[newTemp[0]],[newTemp[1]],[newTemp[2]],[newTemp[3]]]
+    //        };
+    
     // Tried this funny dot notation - several variants never were accepted by plotly.
     //    Plotly.extendTraces(TESTER, data, [[...Array(~NT~).keys()]], 40);
     var listNT = new Array(~NT~);  // note that = [NT] would be an array of length 1 and value NT
@@ -819,16 +914,9 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
     document.getElementById('cbassTime').innerText=`CBASS time: ${jjj.CBASStod}`
     document.getElementById('updateTime').innerText=`Last update: ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`
 
-    return [parseInt(newTime), parseFloat(newTemp)];
   }
+  */
 
-  function useData(t) {
-    console.log(t);
-    document.getElementById('bbb').innerText=t;
-    // Note that split does not use alternate delimiters, i.e. ", " means comma then space, not comma or space.
-    parts = t.split(",");
-    return [parseInt(parts[0]), parseFloat(parts[1])]
-  }
 </script>
 ~LINKLIST~
 </div>

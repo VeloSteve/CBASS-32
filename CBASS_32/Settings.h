@@ -1,5 +1,5 @@
 #define NT 4 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.
-#define RELAY_PAUSE 1000 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
+#define RELAY_PAUSE 5000 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
 
 // The original CBASS from the Barshis lab uses Iceprobe chillers.
 // The Logan lab modifications use moving cold water, and add light controls.
@@ -158,11 +158,14 @@ char addressSets[knownAddressSets][4][8] = {
 };
 
 // Store collected time and temperature information together.
+// old style as sent to Tchart.html:
+// {"NT":[4],"timeval":[54492],"CBASStod":["7:37:39"],"tempList":[19.8,20.1,19.8,20.6],"targetList":[24.0,24.0,24.0,24.0]}
 struct DataPoint
 {
-   DateTime time; 
-   double target[NT];
-   double actual[NT];
+  long unsigned int timestamp;
+  DateTime time; 
+  double target[NT];
+  double actual[NT];
 };
 
 // Keep this since it may be nice in a display, but comment to save memory until we need it.

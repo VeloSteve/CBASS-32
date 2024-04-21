@@ -29,7 +29,7 @@ void sendAsHM(unsigned int t, WiFiClient client);
 bool setNewStartTime(String queryString);
 int timeOrNegative(String s);
 void sendXY(AsyncResponseStream *rs);
-void sendXYHistory(AsyncResponseStream *rs);
+void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest = 0);
 String sendFileInfo();
 void sendRampForm(AsyncResponseStream *rs);
 void sendAsHM(unsigned int t, AsyncResponseStream *rs);
@@ -297,8 +297,15 @@ void defineWebCallbacks() {
     Serial.println("Sending temp history.");
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     response->addHeader("Server", "ESP CBASS-32");
-    sendXYHistory(response);
-
+    // If oldest is specified, we want only points that old or newer.  Get the value.
+    if (!request->hasParam("oldest")) {
+      sendXYHistory(response);
+    } else {
+      AsyncWebParameter *p = request->getParam("oldest");
+      Serial.printf("runT got oldest %s\n", p->value().c_str());
+      char *ptr;
+      sendXYHistory(response, strtoul(p->value().c_str(), &ptr, 10)); // Convert parameter to unsigned long, base 10.  ptr is required but not used here.
+    }
     request->send(response);
   });
 
@@ -724,13 +731,44 @@ void sendXY(AsyncResponseStream *rs) {
 }
 
 /**
- * Send out all accumulated temperature data points as JSON.  For now
- * there's not outer JSON syntax, just a stream of JSON version of the data.
+ * Send out all accumulated temperature data points as JSON.  
  *
- * This is meant to be called once when the graph page loads.
+ * old style as sent to Tchart.html:
+ * {"NT":[4],"timeval":[54492],"CBASStod":["7:37:39"],"tempList":[19.8,20.1,19.8,20.6],"targetList":[24.0,24.0,24.0,24.0]}
+ * New DataPoint format:
+ * "54492":{"datetime":[2024-04-11T16:29:51],"target":[24.00,24.00,24.00,24.00],"actual":[23.44,23.81,23.62,23.69]}
+ * This will often be used with multiple data points, so wrap it like this:
+{ "NT":4,
+  "points":{
+    "54492":{"datetime":[2024-04-11T16:29:51],"target":[24.00,24.00,24.00,24.00],"actual":[23.44,23.81,23.62,23.69]},
+    "55492":{"datetime":[2024-04-11T16:29:52],"target":[24.00,24.00,24.00,24.00],"actual":[23.44,23.81,23.62,23.69]}
+  }
+}
  */
-void sendXYHistory(AsyncResponseStream *rs) {
-  for (int i=0; i<graphPoints.size(); i++) rs->print(dataPointToJSON(graphPoints[i])); 
+void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest default 0 is in forward declaration */
+  const maxBatch = 200;  // Too large a response can hang the system.  Send no more than this many of the oldest lines.
+  int i;
+  int start = 0;
+  // Default to all points, but if "oldest" is specifed return only points from that
+  // timestamp or later.  This is not very efficient, but normally we will be
+  // returning all points (oldest == 0) or just a few.
+  if (oldest > 0) {
+    for (i=graphPoints.size()-1; i >= 0; i--) {
+      if (graphPoints[i].timestamp >= oldest) {
+        start = i;
+      } else {
+        break;
+      }
+    }
+  }
+
+  rs->printf("{\"NT\":%d,\"points\":{", NT);
+  int end = min(graphPoints.size(), start + maxBatch);
+  for (int i=start; i<end; i++) {
+    rs->print(dataPointToJSON(graphPoints[i]));
+    if (i < end-1) rs->print(",");
+  }
+  rs->print("}}");  // Close points list and the overall JSON string.
 }
 
 /**
@@ -1244,8 +1282,9 @@ struct DataPoint
    double actual[NT];
 };
 */
-DataPoint makeDataPoint(DateTime t, double targ[], double a[]) {
+DataPoint makeDataPoint(unsigned long timestamp, DateTime t, double targ[], double a[]) {
   DataPoint d;
+  d.timestamp = timestamp;
   d.time = t;
   memcpy(&d.target, &targ[0], NT*sizeof(double));
   memcpy(&d.actual, &a[0], NT*sizeof(double));
@@ -1255,6 +1294,9 @@ DataPoint makeDataPoint(DateTime t, double targ[], double a[]) {
 
 /**
  * Convert a single datapoint to JSON for sending to the graphing page.
+ * This is meant to be enclosed in an outer list, so don't include NT,
+ * which will be there. Also use the millisecond timestamp as an id
+ * rather a value inside.
  */
 String dataPointToJSON(DataPoint p) {
   // Example output with silly temperatures
@@ -1265,14 +1307,14 @@ String dataPointToJSON(DataPoint p) {
   // Make the buffer 68 + 94 bytes, and round up for safety: 162 -> 200
   char buf[200];
   char fb[7];  // one formatted int, normally 5 characters plus a terminator.
-  sprintf(buf, "{\"NT\":[%d],\"datetime\":[%s],\"Target\":[", NT, p.time.timestamp().c_str());
+  sprintf(buf, "\"%ld\":{\"datetime\":\"%s\",\"target\":[", p.timestamp, p.time.timestamp().c_str());
   int i;
   for (i = 0; i < NT; i++) {
     dtostrf(p.target[i], 5, 2, fb);
     strcat(buf, fb);
     if (i < NT - 1) strcat(buf, ",");
   }
-  strcat(buf, "],\"Actual\":[");
+  strcat(buf, "],\"actual\":[");
   for (i = 0; i < NT; i++) {
     dtostrf(p.actual[i], 5, 2, fb);
     strcat(buf, fb);

@@ -109,7 +109,7 @@ void defineWebCallbacks();
 void checkSD(char* txt);
 void setupMessages();
 void pauseLogging(boolean a);
-DataPoint makeDataPoint(DateTime t, double targ[], double a[]);
+DataPoint makeDataPoint(unsigned long timestamp, DateTime t, double targ[], double a[]);
 String dataPointToJSON(DataPoint p);
 void dataPointPrint(DataPoint p);
 
@@ -337,9 +337,9 @@ void loop()
 
   if (now_ms - GRAPHt > GRAPHwindow) {
     if (graphPoints.size() >= maxGraphPoints) graphPoints.erase(graphPoints.begin());
-    graphPoints.emplace_back(makeDataPoint(t, setPoint, tempT));
-    Serial.printf("graphPoints size is now %d elements. Est. total bytes = %d Stack high water = %d.\n", 
-        graphPoints.size(), graphPoints.size()*sizeof(DataPoint) + sizeof(graphPoints), uxTaskGetStackHighWaterMark( NULL ));
+    graphPoints.emplace_back(makeDataPoint(now_ms, t, setPoint, tempT));
+    //Serial.printf("graphPoints size is now %d elements. Est. total bytes = %d Stack high water = %d.\n", 
+    //    graphPoints.size(), graphPoints.size()*sizeof(DataPoint) + sizeof(graphPoints), uxTaskGetStackHighWaterMark( NULL ));
     GRAPHt += GRAPHwindow;
   }
 
@@ -353,9 +353,6 @@ void loop()
 
   //***** UPDATE SERIAL MONITOR AND LOG *****
   if (now_ms - SERIALt > SERIALwindow) {
-    //DataPoint ddd = makeDataPoint(t, setPoint, tempT);
-    //dataPointPrint(ddd);
-    //Serial.println(dataPointToJSON(ddd));
     // Logging is skipped during certain web operations.
     if (!logPaused) {
       SerialReceive();
@@ -463,7 +460,7 @@ void setupMessages() {
   // Show RTC time so we know it's working.
   tft.setCursor(0, LINEHEIGHT*4);
   tft.print("Time: "); tft.print(gettime());
-  delay(3000);
+  delay(1000);
   esp_task_wdt_reset();
 
   tft.setCursor(0, LINEHEIGHT3*5);

@@ -707,7 +707,7 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
 <script>
 	TESTER = document.getElementById('historyPlot');
   var latest = -1; // Latest timestamp already plotted.
-  var counter = 6;
+  var pointsReceived = 0;
   var data = [];
   var trace;
   for (let i=0; i < ~NT~; i++) {
@@ -728,8 +728,15 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
    } );
 
   // Get the first actual data point right away, later it will be repeated as defined by setInterval.
+  // Now we may be getting batches of points.  Large batches mean we are catching up after starting
+  // the graph well after CBASS started.  Do that a little more aggressively than once we are caught up.
   getPoints(TESTER);
-  // Update every 10 seconds.
+  while (pointsReceived > 20) {
+    delay(1000);  // 1 second is pretty fast, but there's also the time spent updating the graph.
+    getPoints(TESTER);
+  }
+
+  // From now on update every 10 seconds.
   setInterval(function() {
     getPoints(TESTER);
   }, 10000)
@@ -746,8 +753,8 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
     //                    "29312":{"datetime":"2024-04-12T08:38:33","target":[24.00,24.00,24.00,24.00],"actual":[22.25,22.56,22.13,22.44]}}
     //  }');
 
-    let pointCount = Object.keys(jjj.points).length;
-    console.log("Received " + pointCount + " points.  Latest was " + latest);
+    pointsReceived = Object.keys(jjj.points).length;
+    console.log("Received " + pointsReceived + " points.  Latest was " + latest);
 
     if (~NT~ != jjj.NT) {
       document.getElementById('bbb').innerText="ERROR: NT in data (" + jjj.NT + ") != NT of this page (" + ~NT~ + ")";
@@ -765,8 +772,8 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
     // in with all the tank values for a time points.  We need to build the
     // empty 2D array first, and then fill it.
     // Fancy array-initialization code from https://stackoverflow.com/questions/3689903/how-to-create-a-2d-array-of-zeroes-in-javascript
-    let times = Array(jjj.NT).fill().map(() => Array(pointCount));
-    let temps = Array(jjj.NT).fill().map(() => Array(pointCount));
+    let times = Array(jjj.NT).fill().map(() => Array(pointsReceived));
+    let temps = Array(jjj.NT).fill().map(() => Array(pointsReceived));
     let n = 0;
     for (var key in jjj.points) {
       latest = parseInt(key);
@@ -780,7 +787,7 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
     }
     data = {x:times, y:temps};
 
-    console.log("Extending traces");
+    console.log("Extending traces.  New latest is ", latest);
 
     //console.log(data);
  

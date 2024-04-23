@@ -1,5 +1,5 @@
 #define NT 4 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.
-#define RELAY_PAUSE 5000 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
+#define RELAY_PAUSE 500 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
 
 // The original CBASS from the Barshis lab uses Iceprobe chillers.
 // The Logan lab modifications use moving cold water, and add light controls.
@@ -20,10 +20,10 @@
     const char *password = "1234abcd";
 #else
     // Credentials of an existing network.
-    const char *ssid = "Anthozoa";
-    const char *password = "16391727";
-    //const char *ssid = "BirdDino";
-    //const char *password = "1Milpitas";
+    //const char *ssid = "Anthozoa";
+    //const char *password = "16391727";
+    const char *ssid = "BirdDino";
+    const char *password = "1Milpitas";
 
 #endif
 

@@ -746,7 +746,9 @@ void sendXY(AsyncResponseStream *rs) {
 }
  */
 void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest default 0 is in forward declaration */
-  const maxBatch = 200;  // Too large a response can hang the system.  Send no more than this many of the oldest lines.
+  esp_task_wdt_reset();  // Not sure if timeouts are an issue here, but be safer.
+  long unsigned startSend = millis();
+  const int maxBatch = 200;  // Too large a response can hang the system.  Send no more than this many of the oldest lines.
   int i;
   int start = 0;
   // Default to all points, but if "oldest" is specifed return only points from that
@@ -763,12 +765,14 @@ void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest d
   }
 
   rs->printf("{\"NT\":%d,\"points\":{", NT);
-  int end = min(graphPoints.size(), start + maxBatch);
+  int end = min((int)graphPoints.size(), start + maxBatch);
   for (int i=start; i<end; i++) {
     rs->print(dataPointToJSON(graphPoints[i]));
     if (i < end-1) rs->print(",");
   }
   rs->print("}}");  // Close points list and the overall JSON string.
+  esp_task_wdt_reset();
+  Serial.printf("Sent %d points in %lu ms.\n", end-start+1, millis()-startSend);
 }
 
 /**

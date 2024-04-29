@@ -93,6 +93,103 @@ void relayTest() {
 }
 
 /**
+ * Relay show.  Just for fun.  Attach lights or water pumps for best effect.
+ */
+void relayShow() {
+  esp_task_wdt_reset();
+  tft.fillScreen(BLACK);
+  tft.setCursor(0, 0);
+  tft.print("Watch the relays!");
+  Serial.println("relayShow() is starting.  Totally optional.");
+  int on = 200;
+  int off = 20;
+  int i;
+  // All relays, pretty fast.
+  for (i = 0; i < NT; i++) {
+    // Heat
+    setHeatRelay(i, RELAY_ON);
+    delay(on);
+    setHeatRelay(i, RELAY_OFF);
+
+    delay(off);  
+    // Chill
+    setChillRelay(i, RELAY_ON);
+    delay(on);
+    setChillRelay(i, RELAY_OFF);
+    delay(off);  
+  }
+  // Very fast
+  on = 20;
+  off = 1;
+  for (i = 0; i < NT; i++) {
+    // Heat
+    setHeatRelay(i, RELAY_ON);
+    delay(on);
+    setHeatRelay(i, RELAY_OFF);
+
+    delay(off);  
+    // Chill
+    setChillRelay(i, RELAY_ON);
+    delay(on);
+    setChillRelay(i, RELAY_OFF);
+    delay(off);  
+  }
+
+  // Racetrack
+  on = 200;
+  off = 1;
+  for (int j = 0; on >= 16 && j < 20; j++) {
+    Serial.printf("j = %d  NT = %d  on = %d\n", j, NT, on);
+    for (i = 0; i < NT; i++) {
+      // Heat
+      setHeatRelay(i, RELAY_ON);
+      delay(on);
+      setHeatRelay(i, RELAY_OFF);
+      delay(off);
+      on -= 2;
+    }
+    for (i = NT-1; i > -1; i--) {
+      // Chill
+      setChillRelay(i, RELAY_ON);
+      delay(on);
+      setChillRelay(i, RELAY_OFF);
+      delay(off);  
+      on -= 2;
+    }
+    // on = (int)(on * 0.7);
+    esp_task_wdt_reset();
+  }
+
+
+  // All heat, all chill
+  on = 2000;
+  off = 500;
+  for (i = 0; i < NT; i++) setHeatRelay(i, RELAY_ON);
+  delay(on);
+  for (i = 0; i < NT; i++) setHeatRelay(i, RELAY_OFF);
+  delay(off);
+  for (i = 0; i < NT; i++) setChillRelay(i, RELAY_ON);
+  delay(on);
+  for (i = 0; i < NT; i++) setChillRelay(i, RELAY_OFF);
+  delay(off);
+  // All together, now!
+  for (i = 0; i < NT; i++) setHeatRelay(i, RELAY_ON);
+  for (i = 0; i < NT; i++) setChillRelay(i, RELAY_ON);
+  delay(on);
+  delay(on);
+  delay(on);
+  for (i = 0; i < NT; i++) setHeatRelay(i, RELAY_OFF);
+  for (i = 0; i < NT; i++) setChillRelay(i, RELAY_OFF);
+  delay(off);
+
+  tft.setCursor((int)(TFT_HEIGHT/2), 0);
+  tft.print("The show is over.");
+  Serial.println("relayShow() is done.");
+  delay(1000);
+  esp_task_wdt_reset();
+}
+
+/**
  * Relays for tanks 1-4 are directly controlled by Nano pins, but any higher numbers are 
  * controlled by a shift register.  Make that choice here so other functions don't need
  * to know about it.

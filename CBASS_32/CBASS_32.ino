@@ -283,6 +283,7 @@ void setup()
 
   // Do this after the data setup steps, which are quicker, so web pages have content before waiting for the relay tests.
   relayTest();
+  relayShow();  // Just for fun!
   Serial.println();
 
   // Clear the LCD screen before loop() because we may not fully clear it in the loop.

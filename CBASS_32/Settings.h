@@ -9,7 +9,7 @@
 // address or it can create its own network and act as its own WiFi access point.
 #define WIFIAP 1
 #define WIFISTATION 2
-#define WIFIMODE WIFISTATION    // Choose one of the two above
+#define WIFIMODE WIFIAP    // Choose one of the two above
 
 #define MAGICWORD "Auckland"
 
@@ -20,8 +20,8 @@
     const char *password = "1234abcd";
 #else
     // Credentials of an existing network.
-    const char *ssid = "Anthozoa";
-    const char *password = "16391727";
+    const char *ssid = "someRouter";
+    const char *password = "thePassword";
 
 #endif
 
@@ -103,9 +103,9 @@ const int ChillRelay[] = {A7, A6, A3, A2}; // Digital synonyms, A7 = D24, A6 = D
 SdFat32 SDF;  // Example files use lower-case sd, but this fits old CBASS code.
 //File32 file;  Files should be declared like this (not with just File).
 // Normally use "#undef" for ALLOW_UPLOADS because it is dangerous.  Only enable
-// with #define during develpment when you have to ability to remove and reconfigure
+// with #define during development when you have to ability to remove and reconfigure
 // the SD card in case of a mistake.
-#undef ALLOW_UPLOADS
+#define ALLOW_UPLOADS
 
 // Display constants
 #define TFT_WIDTH 320
@@ -166,17 +166,3 @@ struct DataPoint
   double actual[NT];
 };
 
-// Keep this since it may be nice in a display, but comment to save memory until we need it.
-/*
-const byte degree[8] = // define the degree symbol
-{
-  B00110,
-  B01001,
-  B01001,
-  B00110,
-  B00000,
-  B00000,
-  B00000,
-  B00000
-};
- */

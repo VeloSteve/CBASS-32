@@ -294,7 +294,7 @@ void defineWebCallbacks() {
   // 6 hours, whichever is less.  No processor() call is needed
   // so we can just write to a stream.
   server.on("/runT", HTTP_GET, [](AsyncWebServerRequest *request) {
-    Serial.println("Sending temp history.");
+    // Serial.println("Sending temp history.");
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     response->addHeader("Server", "ESP CBASS-32");
     // If oldest is specified, we want only points that old or newer.  Get the value.
@@ -302,7 +302,7 @@ void defineWebCallbacks() {
       sendXYHistory(response);
     } else {
       AsyncWebParameter *p = request->getParam("oldest");
-      Serial.printf("runT got oldest %s\n", p->value().c_str());
+      // Serial.printf("runT got oldest %s\n", p->value().c_str());
       char *ptr;
       sendXYHistory(response, strtoul(p->value().c_str(), &ptr, 10)); // Convert parameter to unsigned long, base 10.  ptr is required but not used here.
     }
@@ -604,11 +604,10 @@ void defineWebCallbacks() {
     request->send(response);
   });
 
-  Serial.println("Sending board image.");
-  fileChunkPos = 0; // Start at byte zero - this should already be set.
     //  Chunked response - my function will provide the chunks using the SdFat library.
   server.on("/32Board.png", HTTP_GET, [](AsyncWebServerRequest *request) {
-    static int chunkPos = 0;  // Lets the function know to start at zero.
+    Serial.println("Sending board image.");
+    fileChunkPos = 0; // Start at byte zero - this should already be set.
     request->sendChunked(
       "image/png",
       [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
@@ -748,7 +747,9 @@ void sendXY(AsyncResponseStream *rs) {
 void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest default 0 is in forward declaration */
   esp_task_wdt_reset();  // Not sure if timeouts are an issue here, but be safer.
   long unsigned startSend = millis();
-  const int maxBatch = 200;  // Too large a response can hang the system.  Send no more than this many of the oldest lines.
+  // Too large a response can hang the system.  Send no more than this many of the oldest lines.
+  // 200 lines is conservative.  Optimize later.
+  const int maxBatch = 200;  
   int i;
   int start = 0;
   // Default to all points, but if "oldest" is specifed return only points from that
@@ -772,7 +773,7 @@ void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest d
   }
   rs->print("}}");  // Close points list and the overall JSON string.
   esp_task_wdt_reset();
-  Serial.printf("Sent %d points in %lu ms.\n", end-start+1, millis()-startSend);
+  // Serial.printf("Sent %d points in %lu ms.\n", end-start+1, millis()-startSend);
 }
 
 /**

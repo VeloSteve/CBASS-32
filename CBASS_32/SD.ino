@@ -87,6 +87,7 @@ void readRampPlan() {
   int nRead, nParse, pos, hh, mm;
   double tempRead;
   int tank = 0;
+  int extra = 0;
   boolean ntFail = false;
   int upTo8[8];  // Read this many temperatures if in the file, then check against NT.
   if (SDF.exists("/Settings.ini")) {
@@ -114,7 +115,7 @@ void readRampPlan() {
     while (settingsFile.peek() == '\n') settingsFile.read();
     while (settingsFile.peek() == '\r') settingsFile.read();
 
-    Serial.printf("Read >%s<\n", lineBuffer);
+    // Serial.printf("Read >%s<\n", lineBuffer);
     if (nRead == 0 || lineBuffer[0] == '/') {
       ;  // an empty line or comment, move on.
     } else if (!strncmp(lineBuffer, "START", 5)) {
@@ -157,14 +158,15 @@ void readRampPlan() {
       token = strtok(lineBuffer, " \t");  // the time - already handled
       token = strtok(NULL, " \t");        // first temperature in same line (NULL)
       tank = 0;
+      extra = 0;
       while (token != NULL) {
         if (tank < NT) {
           sscanf(token, "%lf", &tempRead);
-          //Serial.printf("Scanned temp as %lf for tank %d line %d\n", tempRead, tank, rampSteps);
+          // Serial.printf("Scanned temp as %lf for tank %d line %d\n", tempRead, tank, rampSteps);
           rampHundredths[tank++][rampSteps] = round(tempRead * 100);
           //Serial.printf("%d hundredths.\n", rampHundredths[tank-1][rampSteps]);
         } else {
-          Serial.printf("WARNING: Ignoring extra tank %d in Settings.ini with NT = %d\n", tank + 1, NT);
+          extra++;
         }
         token = strtok(NULL, " \t");
       }
@@ -179,6 +181,9 @@ void readRampPlan() {
       Serial.printf("Bad line: >%s<\n", lineBuffer);
       fatalError(F("Settings.ini has an illegal line.  Edit (/RampPlan) or reset (/ResetRampPlan)."));
     }
+  }
+  if (extra > 0) {
+    Serial.printf("WARNING: Ignoring %d extra tanks in Settings.ini with NT = %d\n", extra, NT);
   }
   settingsFile.close();
   if (ntFail) {

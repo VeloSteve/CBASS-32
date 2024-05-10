@@ -254,7 +254,7 @@ void setup()
   server.begin();
 
   checkTime();  // Sets global t and we save the start time.
-  delay(1000);
+  delay(2000);
   esp_task_wdt_reset();
 
   readRampPlan();
@@ -283,7 +283,7 @@ void setup()
 
   // Do this after the data setup steps, which are quicker, so web pages have content before waiting for the relay tests.
   relayTest();
-  relayShow();  // Just for fun!
+  // relayShow();  // Just for fun!  Lots of relay switching.
   Serial.println();
 
   // Clear the LCD screen before loop() because we may not fully clear it in the loop.
@@ -497,7 +497,7 @@ void getTemperatures() {
 
 void ShowRampInfo() {
   for (int i=0; i<NT; i++) {
-    Serial.printf("The ramp %d temp:\t%f\n", (i+1), setPoint[i]);
+    Serial.printf("Tank %d target: %7.2f\n", (i+1), setPoint[i]);
   }
 }
 

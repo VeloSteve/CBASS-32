@@ -38,4 +38,7 @@
 *.TXT~
 *.css~
 *.js~
+*.h~
+*.ini~
+*.txt~
 .gitignore~

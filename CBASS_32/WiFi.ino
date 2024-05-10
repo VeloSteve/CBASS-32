@@ -16,7 +16,7 @@ IPAddress connectAsAccessPoint() {
       ;
   }
 
-  Serial.printf("Connect to WiFi %s and use URL http://%s", ssid, WiFi.softAPIP());
+  Serial.printf("Connect to WiFi %s and use URL http://%s \n", ssid, WiFi.softAPIP().toString().c_str());
 
   return WiFi.softAPIP();
 }

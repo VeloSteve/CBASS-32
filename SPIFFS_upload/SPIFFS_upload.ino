@@ -167,9 +167,8 @@ void setup() {
   SDinit();
 
   listDir(SPIFFS, "/", 0);
-  //deleteFile(SPIFFS, "hello.txt");
+  //deleteFile(SPIFFS, "/test.txt");
   //deleteFile(SPIFFS, "/fakesub/hello.txt");
-
 
   // Copy each file, deleting any prior version first.
   copyFile_toFS(SPIFFS, "/htdocs/trash.png");
@@ -177,6 +176,7 @@ void setup() {
   copyFile_toFS(SPIFFS, "/htdocs/favicon.ico");
   copyFile_toFS(SPIFFS, "/htdocs/page.css");
   copyFile_toFS(SPIFFS, "/htdocs/plotly.js");
+  
 
   Serial.println("\nSPIFFS dir:");
   listDir(SPIFFS, "/", 0);

@@ -37,7 +37,7 @@ bool rewriteSettingsINI();
 boolean receivePlanJSON(String js, AsyncResponseStream *response);
 String processor(const String &var);
 String showDateTime();
-char *getFileName(File32 f);
+char *getFileName(File32& f);
 void pauseLogging(boolean a);
 
 /**
@@ -870,7 +870,7 @@ String sendFileInfo() {
  * SdFat files don't have .name().  Use .getName and return a buffer.
  * Note that fnBuffer is updated whether the return value is handled or not.
  */
-char *getFileName(File32 f) {
+char *getFileName(File32& f) {
   static char temp[maxPathLen];
   f.getName(fnBuffer, maxPathLen);
   // The ~ character interferes with later replacements by the text processor.  Replace with &tilde;

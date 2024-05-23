@@ -26,7 +26,9 @@ html {
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
-	justify-content: space-around;
+	justify-content: flex-start;
+	column-gap: 5px;
+	height: 99%;
 }
 
 .wrapper {
@@ -88,5 +90,3 @@ tr:nth-child(even) {
 table {
 	border-collapse: collapse;
 }
-
-

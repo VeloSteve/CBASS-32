@@ -7,7 +7,7 @@ const char varname[] PROGMEM = R"rawliteral(
 
 /* A list of links to other pages. Included this on most or all pages served.  */
 const char linkList[] PROGMEM = R"rawliteral(
-<div class="wrapper">
+<div class="wrapper flex fittwowide">
 <b>Any Time</b><br/>
 <ul>
 <li><a href="/files">List files on SD.</a> </li>
@@ -51,6 +51,7 @@ Less wiring, more science!
  */
 const char aboutPage[] PROGMEM = R"rawliteral(
 <html><head><title>~TITLE~</title>
+  <link rel="stylesheet" type="text/css" href="/page.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head><body>
 <h2>About CBASS-32</h2>
@@ -63,17 +64,17 @@ Less wiring, more science!
 <li>A smaller, lighter package.
 <li>Faster processing and more memory, thanks to the Arduino Nano ESP32.
 <li>The ability to control up to 8 tanks.  Displays and logging auto-adapt to any number from 1 to 8.
-<li>A small cost savings, thank to a box which can be printed on almost any 3D printer.
+<li>A small cost savings, thanks to a box which can be printed on almost any 3D printer.
 
 <li><a href="https://aslopubs.onlinelibrary.wiley.com/doi/full/10.1002/lom3.10555">The Coral Bleaching Automated Stress System (CBASS): A low-cost, portable system for standardized empirical assessments of coral thermal limits</a>  The main Evensen et al. paper defining CBASS.
 <li><a href="https://onlinelibrary.wiley.com/doi/10.1111/gcb.15148">Standardized short-term acute heat stress assays resolve historical differences in coral thermotolerance across microhabitat reef sites</a> An earlier paper by Voolstra, et al. establishing the applicability of CBASS assays.
 </ul>
 <h3>Manuals and Such</h3>
 <ul>
-<li><a href="https://tinyurl.com/CBASS-32">Acquiring, assembling, and connecting CBASS-32
+<li><a href="https://tinyurl.com/CBASS-32">Acquiring, assembling, and connecting CBASS-32</a>
 <li>
 </ul>
-<img src="/32Board.png" border="0" width="720" height="1024" alt="CBASS-R v0.2 Board" title="Board Version 0.2"/></div>
+<img src="/32Board.png" border="0" width="360" height="512" alt="CBASS-R v0.2 Board" title="Board Version 0.2"/></div>
 
 ~LINKLIST~
 </body></html>
@@ -129,6 +130,8 @@ const char uploadHTML[] PROGMEM = R"rawliteral(
   </script>
 </head>
 <body>
+  <div class="container">
+  <div class="wrapper flex fittwowide">
   <h1>Upload a File</h1>
   <form action="/Upload" method="POST" enctype="multipart/form-data">
     ~DIRECTORY_CHOICE~
@@ -136,7 +139,9 @@ const char uploadHTML[] PROGMEM = R"rawliteral(
     <br><br>
     <input type="submit" id="upload" value="Upload" disabled>
   </form>
+  </div>
   ~LINKLIST~
+  </div>
 </body>
 </html>
 )rawliteral";
@@ -146,10 +151,20 @@ const char dirListHTML[] PROGMEM = R"rawliteral(
   <html><head><title>~TITLE~</title>
   <link rel="stylesheet" type="text/css" href="page.css" />  
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  </head><body>
+  </head><body><div class="container">
   ~DIRLIST~
   ~LINKLIST~
-  </body></html>
+  </div></body></html>
+)rawliteral";
+
+const char uploadSuccess[] PROGMEM = R"rawliteral(
+  <html><head><title>~TITLE~</title>
+  <link rel="stylesheet" type="text/css" href="page.css" />  
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head><body><div class="container">
+  <div class="wrapper flex fittwowide">Upload successful!</div>
+  ~LINKLIST~
+  </div></body></html>
 )rawliteral";
 
 /*
@@ -166,9 +181,18 @@ const char rollLogNow[] PROGMEM = R"rawliteral(
 
 const char rebootHTML[] PROGMEM = R"rawliteral(
     <html><head><title>~TITLE~
-  </title></head><body><h1>  
-    Rebooting CBASS-32  now!<h1/>
+  </title>
+  <link rel="stylesheet" type="text/css" href="page.css" />  
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head><body>
+  <div class="container"><div class="wrapper flex fittwowide">
+    <h1>Rebooting CBASS-32</h1>
+    At ~DATETIME~
+    <br/>
+    The links below should be available in about 12 seconds, and full operation in about 18 seconds.
+  </div>
     ~LINKLIST~
+  </div>
   </body></html>
 )rawliteral";
 
@@ -187,35 +211,6 @@ INTERP LINEAR
 7:00	30	30	30	30
 )rawliteral";
 
-/** DELETE ME
-const char logHTML[] PROGMEM = R"rawliteral(
-<html>
-<head>
-	<title>~TITLE~</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" type="text/css" href="/page.css" />
-</head>
-<body>
-<div style="color:red;">~RESET_WARNING~</div>
-<p>The file LOG.txt is an important output of CBASS experiments. 
- It gives the most direct confirmation of the actual temperatures in the 
- test areas, though there may alternate monitoring methods as well.
- Because of this it must be <b>handled with care.</b></p>
-
- <p>The actions are supported here.</p>
-<ol>
- <li><a href="/LogDownload" download>Download the current log file.</a> without changing the file.</li>
- <li><a href="/LogRoll">Archive the log and start a new one.</a> This should normally be done only between experiments.</li>
-</ol>
-Note that either of these actions may cause a brief interruption of logging, so even the download option should be
-done with discretion.
-~LINKLIST~
-</body></html>
-)rawliteral";
- */
-
-
-// A page for synchronizing CBASS-32 time to the current device.
 const char logHTML2[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -238,7 +233,9 @@ const char logHTML2[] PROGMEM = R"rawliteral(
   </style>
 </head>
 <body>
+<div class="container">
 <div id="message" style="color:red;">~RESET_WARNING~</div>
+<div class="wrapper flex fittwowide">
 <p>The file LOG.txt is an important output of CBASS experiments. 
  It gives the most direct confirmation of the actual temperatures in the 
  test areas, though there may alternate monitoring methods as well.
@@ -254,6 +251,7 @@ const char logHTML2[] PROGMEM = R"rawliteral(
  <li><a id="dl" href="/LogDownload" download>Download the current log file.</a> without changing the file.</li>
  <li><form><button type="submit" id="roll" href="/LogRoll">Archive the log and start a new one.</button></form></li>
 </ol>
+</div>
 <script>
   function addMagic() {
     console.log("adding magic");
@@ -299,7 +297,7 @@ const char logHTML2[] PROGMEM = R"rawliteral(
 
 </script>
 ~LINKLIST~
-</body></html>
+</div></body></html>
 )rawliteral";
 
 
@@ -313,7 +311,9 @@ const char syncTime[] PROGMEM = R"rawliteral(
   <link rel="stylesheet" type="text/css" href="page.css" />  
 </head>
 <body>
+<div class="container">
 <div id="message" style="color:red;">~RESET_WARNING~</div>
+<div class="wrapper flex fittwowide">
 <p>This page allows you to synchronize CBASS time and date to the current device.
 <p>This is meant for initial setup or when changing time zones.  If CBASS
 forgets the time when powered off and on you should replace the battery.
@@ -330,6 +330,7 @@ need to reset the clock from here if you want to match those changes.
 
 <input type="submit" value="Sync Clock Now"><br><br>
 </form>
+</div>
 <script>
   const form = document.querySelector('form');
   form.addEventListener('submit', async (e) => {
@@ -370,7 +371,7 @@ need to reset the clock from here if you want to match those changes.
 
 </script>
 ~LINKLIST~
-</body></html>
+</div></body></html>
 )rawliteral";
 
 
@@ -667,32 +668,6 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
 	<title>~TITLE~</title>
 	<script src="plotly.js" charset="utf-8"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    th, td {
-    padding: 15px;
-    text-align: left;
-    }
-
-    // Note that these do NOT override a fixed size from any inline CSS.
-    // @media call order matters.  Set for big, but always override for the smaller case.
-    @media (width >= 500px) {
-      .fittwowide {
-        width: 500px;
-        height: 500px;
-        background-color: rgb(192, 128, 128);
-
-      }
-    }
-    @media ((width < 500px) or (height < 500px)) {
-      .fittwowide {
-        width: 98vmin;
-        height: 98vmin;
-                background-color: rgb(128,128,192);
-
-      }
-    }
-
-  </style>
   <link rel="stylesheet" type="text/css" href="/page.css" />
 </head>
 <body>

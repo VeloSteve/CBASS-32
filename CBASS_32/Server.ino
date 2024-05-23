@@ -317,7 +317,7 @@ void defineWebCallbacks() {
     AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", rebootHTML, processor);
     response->addHeader("Server", "ESP Async Web Server");
     request->send(response);
-    delay(500);
+    delay(1000);
     ESP.restart();
   });
 
@@ -513,7 +513,7 @@ void defineWebCallbacks() {
 #ifdef ALLOW_UPLOADS
   server.on(
     "/Upload", HTTP_POST, [](AsyncWebServerRequest *request) {
-      AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", "Upload successful!");
+      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", uploadSuccess, processor);
       request->send(response);
     },
     [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
@@ -806,7 +806,7 @@ String sendFileInfo() {
   }
 
   // The output is a table with one row per file (and .. if a subdirectory)
-  String rString = "<table><tr><th>Type</th><th>Name</th><th>Size</th></tr>\n";
+  String rString = "<div class=\"wrapper flex fittwowide\"><table><tr><th>Type</th><th>Name</th><th>Size</th></tr>\n";
 
   // Enable going up a level if not already at the top
   if (strlen(dirPath) > 1) {
@@ -856,7 +856,7 @@ String sendFileInfo() {
     // SD.h way: file = root.openNextFile();
     file.close();  // Even though we call a method on file once each pass, examples close it each time.
   }
-  rString += "</table>\n";
+  rString += "</table></div>\n";
   file.close();
   root.close();
   pauseLogging(false);
@@ -973,7 +973,7 @@ void sendRampForm(AsyncResponseStream *rs) {
     rs->println("Times in the ramp plan represent time of day.<br>");
   }
 
-  rs->println(linkList);
+  rs->println(manualProcess(linkList));
   rs->println("</body></html>");
 }
 
@@ -1259,6 +1259,24 @@ String processor(const String &var) {
 #endif
   // If the whole if-else falls through return an empty String.
   return String();
+}
+
+/**
+ * A kludge due to the fact that in the RampPlan page the response is computed on the fly
+ * rather than contained in a string.  This means that there is no build-in way to run the
+ * text processors to replace placeholders.  This takes the list of links and replaces
+ * ~UPLOAD_LINK~ appropriately.
+ * An alternative would be to put the whole computation of the page inside the processor(), but
+ * that seems even messier.
+ */
+String manualProcess(const String &var) {
+  int pos;
+  if ((pos = var.indexOf("~UPLOAD_LINK~")) >= 0) {
+    Serial.println("GOT IT");
+    return var.substring(0,pos) + processor("UPLOAD_LINK") + var.substring(pos + 13);
+  } else {
+    return var;
+  }
 }
 
 /**

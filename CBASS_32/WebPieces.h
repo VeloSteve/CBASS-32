@@ -7,7 +7,7 @@ const char varname[] PROGMEM = R"rawliteral(
 
 /* A list of links to other pages. Included this on most or all pages served.  */
 const char linkList[] PROGMEM = R"rawliteral(
-<div class="wrapper flex fittwowide">
+<div class="wrapper flex fittwowide" style="height:fit-content;">
 <b>Any Time</b><br/>
 <ul>
 <li><a href="/files">List files on SD.</a> </li>
@@ -38,6 +38,7 @@ const char header[] PROGMEM = R"rawliteral(
  */
 const char basePage[] PROGMEM = R"rawliteral(
 <html><head><title>~TITLE~</title>
+  <link rel="stylesheet" type="text/css" href="/page.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
 </head><body>
 <h2>Welcome to CBASS-32</h2>
@@ -65,14 +66,14 @@ Less wiring, more science!
 <li>Faster processing and more memory, thanks to the Arduino Nano ESP32.
 <li>The ability to control up to 8 tanks.  Displays and logging auto-adapt to any number from 1 to 8.
 <li>A small cost savings, thanks to a box which can be printed on almost any 3D printer.
-
+</ul>
+<h3>Manuals and References</h3>
+<ul>
+<li><a href="https://tinyurl.com/CBASS-32">CBASS-32 Manual</a> Acquiring, assembling, and connecting CBASS-32.
 <li><a href="https://aslopubs.onlinelibrary.wiley.com/doi/full/10.1002/lom3.10555">The Coral Bleaching Automated Stress System (CBASS): A low-cost, portable system for standardized empirical assessments of coral thermal limits</a>  The main Evensen et al. paper defining CBASS.
 <li><a href="https://onlinelibrary.wiley.com/doi/10.1111/gcb.15148">Standardized short-term acute heat stress assays resolve historical differences in coral thermotolerance across microhabitat reef sites</a> An earlier paper by Voolstra, et al. establishing the applicability of CBASS assays.
-</ul>
-<h3>Manuals and Such</h3>
-<ul>
-<li><a href="https://tinyurl.com/CBASS-32">Acquiring, assembling, and connecting CBASS-32</a>
-<li>
+<li><a href="https://plotly.com/javascript/">Plotly,</a> the library used to display temperatures and ramp plans.
+<li><a href="https://store-usa.arduino.cc/products/nano-esp32?selectedStore=us">Arduino purchase,</a> <a href="https://docs.arduino.cc/hardware/nano-esp32/">documentation,</a> and <a href="https://docs.arduino.cc/tutorials/nano-esp32/cheat-sheet/">cheat sheet.</a>
 </ul>
 <img src="/32Board.png" border="0" width="360" height="512" alt="CBASS-R v0.2 Board" title="Board Version 0.2"/></div>
 
@@ -315,17 +316,15 @@ const char syncTime[] PROGMEM = R"rawliteral(
 <div id="message" style="color:red;">~RESET_WARNING~</div>
 <div class="wrapper flex fittwowide">
 <p>This page allows you to synchronize CBASS time and date to the current device.
-<p>This is meant for initial setup or when changing time zones.  If CBASS
-forgets the time when powered off and on you should replace the battery.
-<p>CBASS does not know about "Daylight Saving" and other time shifts.  You will
+<p>CBASS does not know about time zones or "Daylight Saving".  You will
 need to reset the clock from here if you want to match those changes.
 
 <p>Most recent CBASS time: ~DATETIME~
 
-<p>To change time you must enter the "Magic Word".  Note that it is not a secure password<br>
+<p>To change time you must enter the "Magic Word".  It is not a secure password.<br>
 <form>
 <label for=\"MagicWord\">Magic Word:</label>
-<input type="text" id="magicWord" name="magicWord"><br/>
+<input type="text" id="magicWord" name="magicWord">
 <input name="sync" type="hidden" value="true">
 
 <input type="submit" value="Sync Clock Now"><br><br>
@@ -700,7 +699,7 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
   xaxis: {title: 'Time of Day'},
   yaxis: {title: 'T, '+ String.fromCodePoint(176) + 'C'},  // Just pasting ° didn't work 176 gives the symbol and 8451 gives it with the C.
   responsive: true  // Resize when window resizes, so CSS can fit on different devices.
-   } );
+   }, {modeBarButtonsToRemove: ['resetScale2d']} );
 
   // Get the first actual data point right away, later it will be repeated as defined by setInterval.
   // Now we may be getting batches of points.  Large batches mean we are catching up after starting
@@ -949,7 +948,7 @@ const char rampPlanJavascript[] PROGMEM = R"rawliteral(
     title: 'Temperature Plan',
     xaxis: {title: 'Time from Start'},
     yaxis: {title: 'T, °C'}
-    } );
+    }, {modeBarButtonsToRemove: ['resetScale2d']} );
 
   }
 

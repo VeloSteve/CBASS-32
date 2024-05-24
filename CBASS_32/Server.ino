@@ -905,7 +905,6 @@ void sendRampForm(AsyncResponseStream *rs) {
 
   rs->println("<body><h1>Ramp Plan</h1>");
   rs->println("<div class=\"container\">");
-  rs->println("<div id=\"messages\" class=\"wrapper flex\"></div>");
 
   short j;  // Tank counter
   // now show the ramp plan itself.

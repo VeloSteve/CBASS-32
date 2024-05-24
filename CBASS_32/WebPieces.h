@@ -70,6 +70,7 @@ Less wiring, more science!
 <h3>Manuals and References</h3>
 <ul>
 <li><a href="https://tinyurl.com/CBASS-32">CBASS-32 Manual</a> Acquiring, assembling, and connecting CBASS-32.
+<li><a href="https://github.com/VeloSteve/CBASS-32">CBASS-32 Source Code</a> Temporarily private.
 <li><a href="https://aslopubs.onlinelibrary.wiley.com/doi/full/10.1002/lom3.10555">The Coral Bleaching Automated Stress System (CBASS): A low-cost, portable system for standardized empirical assessments of coral thermal limits</a>  The main Evensen et al. paper defining CBASS.
 <li><a href="https://onlinelibrary.wiley.com/doi/10.1111/gcb.15148">Standardized short-term acute heat stress assays resolve historical differences in coral thermotolerance across microhabitat reef sites</a> An earlier paper by Voolstra, et al. establishing the applicability of CBASS assays.
 <li><a href="https://plotly.com/javascript/">Plotly,</a> the library used to display temperatures and ramp plans.

@@ -91,7 +91,6 @@ void sensorsInit();
 String gettime();
 void relayTest();
 void getTemperatures();
-void saveGraphTemps();
 void updateRelays();
 void SerialReceive();
 void SerialSend();

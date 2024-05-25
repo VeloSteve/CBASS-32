@@ -35,6 +35,10 @@ void sensorsInit()
       printAddress(tt[i]);
       Serial.println();
       // set the resolution to 12 bit
+      // This gives 4096 distinct values in the range -127 to +127
+      // resulting in temperature steps of 255/4096 = 0.062 degrees C.
+      // This is much finer than the claimed 0.5 C sensor accuracy, but
+      // can produce odd-looking steps on graphs.
       sensors.setResolution(tt[i], 12);
     }
   }

@@ -805,58 +805,6 @@ bool myFileCopy(const char* ooo, const char* nnn) {
   return true;
 }
 
-/**
-    Save just time and temperature for easier parsing when graphing temperatures on the fly.
-
-    Several ways of saving time are possible.  Milliseconds since boot is fast and easy, but graphs
-    would break across reboots.  The RTClib functions work with time since 1 Jan 2000, but they are NOT
-    aware of time zones.  There is no advantage in converting to human-friendly units at this point,
-    we we'll save seconds since 2000.  This can be used directly in RTClib functions if we graph
-    on CBASS, and converted to standard time units when on the app.
-    Save the seconds in 10 digits.  This allows times up to about the year 2317 without changing
-    the number of bytes.  An unsigned long will hold up to 4,294,967,295 is good until about 2136,
-    which should be plenty.  Actually, the secondstime function uses a long, limiting the current
-    version to "only" 2068.
-    As an example, as this is written the timestamp is 708085103.
-
-    NT*2 temperatures are saved. First come the latest measured values for the NT tanks and then
-    their setpoints.  Only tenths of degrees are saved, compared to the main log file which has
-    hundredths.
-
-*/
-void saveGraphTemps() {
-  logFile = SDF.open("/GRAPHPTS.TXT", O_WRONLY | O_CREAT | O_APPEND);
-  logFile.seekEnd(0);
-
-  // Trust time "t" to be close enough, since it was set just before saving new
-  // temperatures and setpoints.
-
-  // Serial.print("secondsTime = "); Serial.print(t.secondstime()); Serial.println(" time since 2000");
-  if (t.secondstime() < 1000000000) logFile.print("0");  // true until about 2031
-  logFile.print(t.secondstime());
-  logFile.print(",");
-
-  Serial.print("Saving temps at ");
-  Serial.print(t.hour());
-  Serial.print(":");
-  Serial.print(t.minute());
-  Serial.print(":");
-  Serial.println(t.second());
-  byte i;
-  for (i = 0; i < NT; i++) {
-    if (tempInput[i] < 10.0) logFile.print("0");  // In case of single-digit temps.  We assume >= 0.
-    logFile.print(tempInput[i], 1);
-    logFile.print(",");
-  }
-  for (i = 0; i < NT; i++) {
-    if (setPoint[i] < 10.0) logFile.print("0");  // In case of single-digit temps.  We assume >= 0.
-    logFile.print(setPoint[i], 1);
-    if (i < 3) logFile.print(",");
-  }
-  logFile.println();
-  logFile.close();
-}
-
 /*
    Read from tryHere to a newline, into the provided buffer.
 */

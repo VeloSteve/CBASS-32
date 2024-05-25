@@ -681,19 +681,46 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
 
 <script>
 	TESTER = document.getElementById('historyPlot');
+
+  // Colors from Paul Tol, which should be relatively color-blind friendly
+  //  This is his "vibrant" scheme, with black added because we want 8 colors.
+  //  His suggested order is:  orange  blue  cyan  magenta  red  teal  grey
+  const lineColors = [
+    '#EE7733',
+    '#0077BB',
+    '#33BBEE',
+    '#EE3377',
+    '#CC3311',
+    '#009988',
+    '#BBBBBB',
+    '#000000'
+   ];
+
+
   var latest = -1; // Latest timestamp already plotted.
   var pointsReceived = 0;
   var data = [];
   var trace;
+  // NT temperatures
   for (let i=0; i < ~NT~; i++) {
-    //trace = {x: [1, 2, 3, 4, 5],
-    //  y: [1, 2, 4, 8, 16],
     trace = {x: [],
       y: [],
-      mode: 'lines', name: 'Tank '+(i+1)};
+      mode: 'lines', 
+      name: 'Tank '+(i+1),
+      line: {color: lineColors[i % 8], width: 3}
+    };
     data.push(trace);
   }
-
+  // NT targets
+  for (let i=0; i < ~NT~; i++) {
+    trace = {x: [],
+      y: [],
+      mode: 'lines',
+      name: 'Target '+(i+1),
+      line: {color: lineColors[i % 8], width: 1}
+    }
+    data.push(trace);
+  }
 	tHistory = Plotly.newPlot( TESTER, data, {
 	margin: { t: 50 },
   title: 'Temperature History',
@@ -747,8 +774,8 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
     // in with all the tank values for a time points.  We need to build the
     // empty 2D array first, and then fill it.
     // Fancy array-initialization code from https://stackoverflow.com/questions/3689903/how-to-create-a-2d-array-of-zeroes-in-javascript
-    let times = Array(jjj.NT).fill().map(() => Array(pointsReceived));
-    let temps = Array(jjj.NT).fill().map(() => Array(pointsReceived));
+    let times = Array(2 * jjj.NT).fill().map(() => Array(pointsReceived));
+    let temps = Array(2 * jjj.NT).fill().map(() => Array(pointsReceived));  // Double length due to targets.
     let n = 0;
     for (var key in jjj.points) {
       latest = parseInt(key);
@@ -756,7 +783,9 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
       for (let i=0; i < jjj.NT; i++) {
         //times[i][n] = latest
         times[i][n] = pt.datetime;
+        times[i + jjj.NT][n] = pt.datetime;
         temps[i][n] = parseFloat(pt.actual[i]);
+        temps[i + jjj.NT][n] = parseFloat(pt.target[i]); // targets after actual temps
       }
       n++;
     }
@@ -776,8 +805,9 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
      */
     // Tried this funny dot notation - several variants never were accepted by plotly.
     //    Plotly.extendTraces(TESTER, data, [[...Array(~NT~).keys()]], 40);
-    var listNT = new Array(~NT~);  // note that = [NT] would be an array of length 1 and value NT
-    for (let i=0; i < ~NT~; i++) {
+    // NT * 2 for NT targets and NT actual temps
+    var listNT = new Array(~NT~ * 2);  // note that = [NT] would be an array of length 1 and value NT
+    for (let i=0; i < ~NT~ * 2; i++) {
       listNT[i] = i;
     }
 

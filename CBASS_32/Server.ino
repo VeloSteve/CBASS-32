@@ -41,41 +41,6 @@ char *getFileName(File32& f);
 void pauseLogging(boolean a);
 
 /**
- * Read up to maxLen bytes from the log file starting at logChunkPos and be
- * ready for more calls until everything has been read.  When returning zero
- * (no more bytes) reset the position marker.
- */
-/*
-uint32_t logChunkPos = 0;
-File32 fileForChunks;
-size_t logChunks(uint8_t *buffer, size_t maxLen) {
-  Serial.println("In logChunks.");
-  size_t maxRead = 4096;
-  int bytesRead = 0;
-  // Stop logging to avoid race conditions.  Be sure to reset
-  // this regardless of result.
-  pauseLogging(true);
-  if (!fileForChunks) {
-    fileForChunks = SDF.open("/LOG.txt", O_RDONLY);
-  }
-  fileForChunks.seekSet(logChunkPos);
-  // Read no more than the server asks for, but also no more than maxRead,
-  // which is meant as a reasonable speed/memory/safety compromise.
-  bytesRead = fileForChunks.read(buffer, min(maxRead, maxLen));
-  Serial.printf("logChunks returning %d bytes, start = %d,  maxLen = %d, maxRead = %d.\n", bytesRead, logChunkPos, maxLen, maxRead);
-
-  if (bytesRead <= 0) {
-    logChunkPos = 0;
-    fileForChunks.close();
-    pauseLogging(false);
-  } else {
-    logChunkPos += bytesRead;
-  }
-  return bytesRead;
-}
- */
-
-/**
  * Return parts of a file. Each chunk is placed in the buffer, and
  * a static variable records the position of the next byte to read.
  * TODO: Verify that the correct thing happens if two users request
@@ -122,7 +87,6 @@ size_t fileChunks(uint8_t *buffer, size_t maxLen, const char *fName) {
  */
 void defineWebCallbacks() {
   Serial.print("Defining callbacks...");
-
   // Root page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Sending root web page.");
@@ -131,15 +95,6 @@ void defineWebCallbacks() {
     response->addHeader("Server", "ESP Async Web Server");
     request->send(response);
   });
-
-  /**
-   * While just "/" gets the root page, anything else not defined explicitly will be
-   * looked for in /htdocs and served without modification.  This will typically be
-   * javascript or CSS, since we want to process the HTML pages.
-   * Speed: the plotly.js file served from SPIFFS takes 230 to 500ms.  Sending from SD
-   * as a chunked responsed takes 8.7 seconds or more!
-   */
-  server.serveStatic("/", SPIFFS, "/htdocs/").setCacheControl("max-age=3600");  // for a full day: 86400");
 
 
   /**
@@ -200,15 +155,6 @@ void defineWebCallbacks() {
   });
 
 
-  // Javascript for sending back table data from the ramp plan page.
-  server.on("/tableScript.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-    Serial.println("Sending table data javascript.");
-    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/javascript", tableScript, processor);
-    response->addHeader("Server", "ESP Async Web Server");
-    response->addHeader("cache-control", "public, max-age=200");  // 86400");
-    request->send(response);
-  });
-
   // Javascript for the ramp plan
   server.on("/rampPlan.js", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Sending ramp plan plot javascript");
@@ -265,9 +211,6 @@ void defineWebCallbacks() {
     }
   });
 
-
-
-
   // Plot and monitor temperatures
   server.on("/Tchart.html", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Sending chart page.");
@@ -277,24 +220,12 @@ void defineWebCallbacks() {
     request->send(response);
   });
 
-  // Return current temperatures.  This is another case where no processor() call is needed
-  // so we can just write to a stream.
-  server.on("/currentT", HTTP_GET, [](AsyncWebServerRequest *request) {
-    Serial.println("Sending latest Temps.");
-    //AsyncResponseStream *response = request->beginResponseStream("text/csv");
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-    response->addHeader("Server", "ESP CBASS-32");
-    sendXY(response);
-
-    request->send(response);
-  });
-
   // All stored temperature DataPoint values.
   // This will typically be whatever has accumulated since the last reboot, or
   // 6 hours, whichever is less.  No processor() call is needed
   // so we can just write to a stream.
   server.on("/runT", HTTP_GET, [](AsyncWebServerRequest *request) {
-    // Serial.println("Sending temp history.");
+    //Serial.println("Sending temp history (server.on()).");
     AsyncResponseStream *response = request->beginResponseStream("application/json");
     response->addHeader("Server", "ESP CBASS-32");
     // If oldest is specified, we want only points that old or newer.  Get the value.
@@ -511,8 +442,7 @@ void defineWebCallbacks() {
 #endif
 
 #ifdef ALLOW_UPLOADS
-  server.on(
-    "/Upload", HTTP_POST, [](AsyncWebServerRequest *request) {
+  server.on("/Upload", HTTP_POST, [](AsyncWebServerRequest *request) {
       AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", uploadSuccess, processor);
       request->send(response);
     },
@@ -615,6 +545,18 @@ void defineWebCallbacks() {
         return fileChunks((uint8_t *)buffer, maxLen, "/htdocsSD/32Board.png");
       });
   });
+
+  /**
+   * While just "/" gets the root page, anything else not defined explicitly will be
+   * looked for in /htdocs and served without modification.  This will typically be
+   * javascript or CSS, since we want to process the HTML pages.
+   * Speed: the plotly.js file served from SPIFFS takes 230 to 500ms.  Sending from SD
+   * as a chunked responsed takes 8.7 seconds or more!'
+   *
+   * NOTE: Having this near the top of the list makes ALL calls slow!
+   * Surprisingly, moving it here speeds everything up, even things served statically.
+   */
+  server.serveStatic("/", SPIFFS, "/htdocs/").setCacheControl("max-age=3600");  // for a full day: 86400");
 
   server.onNotFound([](AsyncWebServerRequest *request) {
     request->send(404, "text/plain", "Not found on this reef.");
@@ -746,15 +688,17 @@ void sendXY(AsyncResponseStream *rs) {
  */
 void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest default 0 is in forward declaration */
   esp_task_wdt_reset();  // Not sure if timeouts are an issue here, but be safer.
-  long unsigned startSend = millis();
+  //long unsigned startSend = millis();
   // Too large a response can hang the system.  Send no more than this many of the oldest lines.
-  // 200 lines is conservative.  Optimize later.
-  const int maxBatch = 200;  
+  // 1000 points move in about 370 ms in testing, allowing for one check per second with plenty of
+  // slack.  Once caught up the batches become much smaller.
+  const int maxBatch = 1000;  // If this doesn't finish before the next call it causes a reboot.  SOLVE THIS! XXX
   int i;
   int start = 0;
   // Default to all points, but if "oldest" is specifed return only points from that
   // timestamp or later.  This is not very efficient, but normally we will be
   // returning all points (oldest == 0) or just a few.
+  // Times as 0 ms, so leave it as is.
   if (oldest > 0) {
     for (i=graphPoints.size()-1; i >= 0; i--) {
       if (graphPoints[i].timestamp >= oldest) {
@@ -767,13 +711,33 @@ void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest d
 
   rs->printf("{\"NT\":%d,\"points\":{", NT);
   int end = min((int)graphPoints.size(), start + maxBatch);
+  // Is it the rs-> lines that are slow?  Faster to batch the strings?  YES!
+  /*
   for (int i=start; i<end; i++) {
     rs->print(dataPointToJSON(graphPoints[i]));
     if (i < end-1) rs->print(",");
+  } */
+  String pp[20];
+  int sCount = 0;
+  for (int i=start; i<end; i++) {
+    pp[sCount] = dataPointToJSON(graphPoints[i]);
+    sCount++;
+    if (sCount == 20) {
+      // Tedious, but much faster than sending on at a time.
+       if (i == end-1) rs->printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",  pp[0].c_str(), pp[1].c_str(), pp[2].c_str(), pp[3].c_str(), pp[4].c_str(), pp[5].c_str(), pp[6].c_str(), pp[7].c_str(), pp[8].c_str(), pp[9].c_str(), pp[10].c_str(), pp[11].c_str(), pp[12].c_str(), pp[13].c_str(), pp[14].c_str(), pp[15].c_str(), pp[16].c_str(), pp[17].c_str(), pp[18].c_str(), pp[19].c_str());
+      else            rs->printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,", pp[0].c_str(), pp[1].c_str(), pp[2].c_str(), pp[3].c_str(), pp[4].c_str(), pp[5].c_str(), pp[6].c_str(), pp[7].c_str(), pp[8].c_str(), pp[9].c_str(), pp[10].c_str(), pp[11].c_str(), pp[12].c_str(), pp[13].c_str(), pp[14].c_str(), pp[15].c_str(), pp[16].c_str(), pp[17].c_str(), pp[18].c_str(), pp[19].c_str());
+      sCount = 0;
+    }
+  }
+
+  // Send any remaining items in the set.
+  for (int i=0; i < sCount; i++) {
+    rs->print(pp[i]);
+    if (i < sCount-1) rs->print(",");
   }
   rs->print("}}");  // Close points list and the overall JSON string.
   esp_task_wdt_reset();
-  // Serial.printf("Sent %d points in %lu ms.\n", end-start+1, millis()-startSend);
+  //Serial.printf("Sent %d points in %lu ms (cumulative).  Max was %d\n", end-start+1, millis()-startSend, maxBatch);
 }
 
 /**
@@ -938,7 +902,6 @@ void sendRampForm(AsyncResponseStream *rs) {
   rs->print("<div id=\"rgraph\" class=\"wrapper flex\"></div>");
 
   // This supports table operations and sends data to the server when the button is pushed.
-  rs->println("<script src=\"/tableScript.js\"></script>");
   // Add a graph!
   // Add the plotly javascript
   rs->print("<script src=\"plotly.js\" charset=\"utf-8\"></script>");
@@ -1319,6 +1282,8 @@ DataPoint makeDataPoint(unsigned long timestamp, DateTime t, double targ[], doub
  * This is meant to be enclosed in an outer list, so don't include NT,
  * which will be there. Also use the millisecond timestamp as an id
  * rather a value inside.
+ * NOTE: To avoid String construction a version was made which wrote
+ * directly to the stream with rs->print() and rs->printf() calls.  It was MUCH slower.
  */
 String dataPointToJSON(DataPoint p) {
   // Example output with silly temperatures

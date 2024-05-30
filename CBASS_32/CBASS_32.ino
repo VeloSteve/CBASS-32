@@ -172,7 +172,7 @@ const int TPCwindow=10000;
 // Time Windows: Update LCD 2/sec; Serial (logging) 1/sec, Ramp Status 1/sec
 const unsigned int LCDwindow = 1000;
 const unsigned int SERIALwindow = 15000;  // Default 1000; how often to log.
-unsigned int GRAPHwindow = 5000;
+unsigned int GRAPHwindow = 5000;  // 5000 (5 seconds) give good graph resolution.  More points waste memory and bandwidth.
 
 const unsigned int serialHeaderPeriod = 10000; // Print header after this many lines.  Not useful for automated use.
 unsigned int SerialOutCount = serialHeaderPeriod + 1;  // Print at the top of any new log.

@@ -11,9 +11,10 @@ IPAddress connectAsAccessPoint() {
   // You can remove the password parameter if you want the AP to be open.
   // a valid password must have more than 7 characters
   if (!WiFi.softAP(ssid, password)) {
-    log_e("Soft AP creation failed.");
-    while (1)
-      ;
+    //log_e("Soft AP creation failed.");
+    fatalError(F("Soft AP creation failed."));
+    //while (1)
+    //  ;
   }
 
   Serial.printf("Connect to WiFi %s and use URL http://%s \n", ssid, WiFi.softAPIP().toString().c_str());

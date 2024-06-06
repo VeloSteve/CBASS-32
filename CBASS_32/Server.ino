@@ -28,7 +28,6 @@ void sendFromFile(WiFiClient client);
 void sendAsHM(unsigned int t, WiFiClient client);
 bool setNewStartTime(String queryString);
 int timeOrNegative(String s);
-void sendXY(AsyncResponseStream *rs);
 void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest = 0);
 String sendFileInfo();
 void sendRampForm(AsyncResponseStream *rs);
@@ -238,6 +237,7 @@ void defineWebCallbacks() {
       sendXYHistory(response, strtoul(p->value().c_str(), &ptr, 10)); // Convert parameter to unsigned long, base 10.  ptr is required but not used here.
     }
     request->send(response);
+    // Serial.print("Sent to "); Serial.println(request->client()->remoteIP());
   });
 
   // TODO require password
@@ -645,37 +645,8 @@ String rollLog() {
 }
 
 /**
- * Send the latest temperature status in JSON format, for example
- * {"NT":[4],"timeval":[46],"CBASStod":["19:39:50"],"tempList":[0.0,0.0,0.0,0.0],"targetList":[32.0,27.0,36.0,38.0]}
- * ISO 8601 format is used for the date and time.
- */
-void sendXY(AsyncResponseStream *rs) {
-  // Temp checks fill this: tempInput[]
-  int tv = (int)(millis() / 1000);
-  rs->printf("{\"NT\":[%d],", NT);
-  rs->printf("\"timeval\":[%d],", tv);
-  rs->print("\"CBASStod\":[\"");
-  rs->print(gettime());
-  rs->print("\"],\"tempList\":[");
-
-  for (int i = 0; i < NT; i++) {
-    rs->printf("%#.1f", tempInput[i]);
-    if (i < NT - 1) rs->print(",");
-  }
-
-  rs->print("],\"targetList\":[");
-  for (int i = 0; i < NT; i++) {
-    rs->printf("%#.1f", setPoint[i]);
-    if (i < NT - 1) rs->print(",");
-  }
-  rs->println("]}");
-}
-
-/**
  * Send out all accumulated temperature data points as JSON.  
  *
- * old style as sent to Tchart.html:
- * {"NT":[4],"timeval":[54492],"CBASStod":["7:37:39"],"tempList":[19.8,20.1,19.8,20.6],"targetList":[24.0,24.0,24.0,24.0]}
  * New DataPoint format:
  * "54492":{"datetime":[2024-04-11T16:29:51],"target":[24.00,24.00,24.00,24.00],"actual":[23.44,23.81,23.62,23.69]}
  * This will often be used with multiple data points, so wrap it like this:
@@ -688,7 +659,9 @@ void sendXY(AsyncResponseStream *rs) {
  */
 void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest default 0 is in forward declaration */
   esp_task_wdt_reset();  // Not sure if timeouts are an issue here, but be safer.
-  //long unsigned startSend = millis();
+  short debug = 0;
+  long unsigned startSend;
+  if (debug) startSend = millis();
   // Too large a response can hang the system.  Send no more than this many of the oldest lines.
   // 1000 points move in about 370 ms in testing, allowing for one check per second with plenty of
   // slack.  Once caught up the batches become much smaller.
@@ -707,8 +680,13 @@ void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest d
         break;
       }
     }
+    if (start == 0) {
+      // No points need sending.  Do not start at zero in this case!
+      rs->printf("{\"NT\":%d,\"points\":{}}", NT);
+      if (debug) Serial.printf("Nothing to send.  Oldest was %8d, last graphPoint %d\n", oldest, graphPoints[graphPoints.size()-1].timestamp);
+      return;
+    }
   }
-
   rs->printf("{\"NT\":%d,\"points\":{", NT);
   int end = min((int)graphPoints.size(), start + maxBatch);
   // Is it the rs-> lines that are slow?  Faster to batch the strings?  YES!
@@ -723,7 +701,7 @@ void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest d
     pp[sCount] = dataPointToJSON(graphPoints[i]);
     sCount++;
     if (sCount == 20) {
-      // Tedious, but much faster than sending on at a time.
+      // Tedious, but much faster than sending one at a time.
        if (i == end-1) rs->printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",  pp[0].c_str(), pp[1].c_str(), pp[2].c_str(), pp[3].c_str(), pp[4].c_str(), pp[5].c_str(), pp[6].c_str(), pp[7].c_str(), pp[8].c_str(), pp[9].c_str(), pp[10].c_str(), pp[11].c_str(), pp[12].c_str(), pp[13].c_str(), pp[14].c_str(), pp[15].c_str(), pp[16].c_str(), pp[17].c_str(), pp[18].c_str(), pp[19].c_str());
       else            rs->printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,", pp[0].c_str(), pp[1].c_str(), pp[2].c_str(), pp[3].c_str(), pp[4].c_str(), pp[5].c_str(), pp[6].c_str(), pp[7].c_str(), pp[8].c_str(), pp[9].c_str(), pp[10].c_str(), pp[11].c_str(), pp[12].c_str(), pp[13].c_str(), pp[14].c_str(), pp[15].c_str(), pp[16].c_str(), pp[17].c_str(), pp[18].c_str(), pp[19].c_str());
       sCount = 0;
@@ -737,7 +715,7 @@ void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest d
   }
   rs->print("}}");  // Close points list and the overall JSON string.
   esp_task_wdt_reset();
-  //Serial.printf("Sent %d points in %lu ms (cumulative).  Max was %d\n", end-start+1, millis()-startSend, maxBatch);
+  if (debug) Serial.printf("Sent %5d points in %4lu ms (cumulative).  Max was %4d.  Oldest was %8d Start was %5d  %7d s runtime.\n", end-start, millis()-startSend, maxBatch, oldest, start, (int)(millis()/1000));
 }
 
 /**

@@ -16,7 +16,7 @@ void startDisplay() {
  * stay on the screen until the next step or error.
  * The "pass" static variable allows subsequent lines to stack.
  */
-void tftMessage(const char* msg) {
+void tftMessage(const char* msg, bool toSerial) {
   static int pass = 0;
   if (pass == 0) {
     tft.fillScreen(tft.color565(0, 128, 0));
@@ -34,6 +34,7 @@ void tftMessage(const char* msg) {
     tft.setTextSize(3);
   }
   tft.println(msg);
+  if (toSerial) Serial.println(msg);
 }
 
 /**

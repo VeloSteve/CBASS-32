@@ -444,49 +444,45 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
   responsive: true  // Resize when window resizes, so CSS can fit on different devices.
    }, {modeBarButtonsToRemove: ['resetScale2d']} );
 
-  // Get the first actual data point right away, later it will be repeated as defined by setInterval.
+  // Get the first actual data points right away, later it will be repeated as defined by setInterval.
   // Now we may be getting batches of points.  Large batches mean we are catching up after starting
   // the graph well after CBASS started.  Do that a little more aggressively than once we are caught up.
 
-  getPoints(TESTER);
+  // Get data points.
+  // The default maximum batch size on the CBASS-32 side is 1000 points, but we'll only be getting 1 to 6 points
+  // once the graph catches up to real time.
+  // Note that an early version with setInterval was unreliable.  setTimeout is more suitable for sequential
+  // actions of unknown duration.
+  console.log("Starting point collection.");
 
-  // Work quickly when first loading.  Set a false first
-  // value for pointsReceived since it may not update before getPoints returns.
-  console.log("Setting up fast point collection.");
   pointsReceived = 10000;
-  let intervalID = setInterval(function() {
-    console.log("Getting points in FAST loop.  Last count was " + pointsReceived);
-    if (pointsReceived < 50) {
-      clearInterval(intervalID);  // Stop when caught up.
-      startSlowCollection();
-    }
-    getPoints(TESTER);
-  }, 1000)
- 
-
-  // From now on update every 10 seconds.
-  /* moved to a function
-  console.log("Setting up slow point collection.");
-  setInterval(function() {
-    console.log("Getting points in SLOW loop.  Last count was " + pointsReceived);
-    getPoints(TESTER);
-  }, 10000)
-   */
-
-  function startSlowCollection() {
-    // From now on update every 10 seconds.
-    console.log("Setting up slow point collection.");
-    setInterval(function() {
-    console.log("Getting points in SLOW loop.  Last count was " + pointsReceived);
-    getPoints(TESTER);
-    }, 10000)
+  let fetchDelay = 1000;  // Start getting points every second for fast startup.
+  function collectData() {
+    getPoints(TESTER)
+      .then(() => {
+        if (true) {
+          // Slow down to every 5 seconds once we catch up.
+          if (pointsReceived < 100 && pointsReceived > 0) fetchDelay = 5000;
+          setTimeout(collectData, fetchDelay);
+        }
+      })
+      .catch(e => console.log(e));
   }
+  collectData();
+
+
 
   // must be async to use await.
   async function getPoints(TESTER) {
+    var debug = 0;
     if (latest == oldLatest) return;
     let jjj;
+    if (debug) console.log("last rec = " + pointsReceived + " latest = " + latest + " fetchDelay = " + fetchDelay);
     const res = await fetch("http://~IP~/runT?oldest=" + (latest+1));
+    // console.log('Response status: ' + res.status);
+    if (!res.ok) {
+      throw new Error(`HTTP error: ${res.status}`);
+    }
     jjj = await res.json();
 
     // Input looks like
@@ -495,7 +491,7 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
     //  }');
 
     pointsReceived = Object.keys(jjj.points).length;
-    console.log("Received " + pointsReceived + " points.  Latest was " + latest);
+    if (debug) console.log("Received " + pointsReceived + " points.  Latest was " + latest);
     if (pointsReceived == 0) return;
     oldLatest = latest;
 
@@ -531,7 +527,7 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
     }
     data = {x:times, y:temps};
 
-    console.log("Extending traces.  New latest is ", latest);
+    if (debug) console.log("Extending traces.  New latest is ", latest);
 
     //console.log(data);
  

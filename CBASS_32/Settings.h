@@ -17,7 +17,7 @@
 #if WIFIMODE == WIFIAP
     // Credentials for a network CBASS-32 will create.
     const char *ssid = "CBASS_AP";
-    const char *password = "1234abcd";
+    const char *password = "Monterey";  // Minimum length 7 characters!
 #else
     // Credentials of an existing network.
     const char *ssid = "someRouter";

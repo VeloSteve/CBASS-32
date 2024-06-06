@@ -171,8 +171,8 @@ const int TPCwindow=10000;
 
 // Time Windows: Update LCD 2/sec; Serial (logging) 1/sec, Ramp Status 1/sec
 const unsigned int LCDwindow = 1000;
-const unsigned int SERIALwindow = 15000;  // Default 1000; how often to log.
-unsigned int GRAPHwindow = 5000;  // 5000 (5 seconds) give good graph resolution.  More points waste memory and bandwidth.
+const unsigned int SERIALwindow = 5000;  // Default 1000; how often to log.
+unsigned int GRAPHwindow = 5000;  // 5000 (5 seconds) gives good graph resolution.  More points waste memory and bandwidth.
 
 const unsigned int serialHeaderPeriod = 10000; // Print header after this many lines.  Not useful for automated use.
 unsigned int SerialOutCount = serialHeaderPeriod + 1;  // Print at the top of any new log.
@@ -227,13 +227,13 @@ void setup()
   startDisplay();             // TFT display
   Serial.println("\n===== Booting CBASS-32 45=====");
   Serial.printf("Running on core %d.\n", xPortGetCoreID());
-  tftMessage("    Less wiring,\n    more science!");
+  tftMessage("    Less wiring,\n    more science!", false);
 
   clockInit();  // Keep this before any use of the clock for logging or ramps.
   bootTime = gettime();
 
   // Start the filesystem for SD card access.
-  tftMessage("Starting file systems.");
+  tftMessage("Starting file systems.", true);
   SDinit();                   // SD card
 
 
@@ -245,10 +245,10 @@ void setup()
 
   // Start WiFi and the web server
   sprintf(iniBuffer, "Connecting WiFi to\n %s.", ssid);
-  tftMessage(iniBuffer);
+  tftMessage(iniBuffer, true);
   myIP = connectWiFi();
   esp_task_wdt_reset();
-  tftMessage("Defining web pages");
+  tftMessage("Defining web pages", true);
   defineWebCallbacks();
   server.begin();
 

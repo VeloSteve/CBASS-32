@@ -1,5 +1,7 @@
 # CBASS-32
-Main and supporting sketches for the Coral Bleaching Automated Stress System, ESP32 version
+CBASS refers to any version of the [Coral Bleaching Automated Stress System](https://aslopubs.onlinelibrary.wiley.com/doi/pdfdirect/10.1002/lom3.10555), as developed by several researchers.  CBASS-32 is a specific implementation of the controller using an Arduino Nano ESP-32 to support additional features.
+
+This repository contains main and supporting sketches for CBASS-32.  
 
 ## CBASS-32
 This is the main sketch to run experiments.  Extensive documentation is in the [CBASS-32 User Guide](https://tinyurl.com/CBASS-32) google doc,

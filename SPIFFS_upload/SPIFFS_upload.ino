@@ -4,7 +4,7 @@
  * SD card only has to be reliable once.
  * Also, serving web files from SPIFFS is much faster than from SD.
  * Most of the code is copy-pasted from the SPIFFS_Test example.
- * 1) Copy the htdocs directory from /data/ to the root directory of a microSD
+ * 1) Copy the htdocs directory from CBASS-32/htdocs to the root directory of a microSD
  *    card.
  * 2) Insert the card in the CBASS-32 system you wish to initialize.
  * 3) Build and run this sketch on that system.

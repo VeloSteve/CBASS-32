@@ -14,12 +14,9 @@ void RelaysInit() {
     //---( THEN set pins as Outputs )----
     pinMode(HeaterRelay[i], OUTPUT);
     pinMode(ChillRelay[i], OUTPUT);
-#ifdef COLDWATER
-    digitalWrite(LightRelay[i], RELAY_OFF);
-    pinMode(LightRelay[i], OUTPUT);
-#endif
   }
   // Shift Register
+  // Note that it doesn't matter here whether the shift register will control heaters, lights, or chillers.
   pinMode(LATCH_PIN, OUTPUT);
   pinMode(DATA_PIN, OUTPUT);
   pinMode(CLOCK_PIN, OUTPUT);
@@ -31,7 +28,6 @@ void RelaysInit() {
 /**
  * Relay Tests.  Writes 8 lines, numbered 1-8.
  * Each heater and chiller relay is turned on, then off.
- * In COLDWATER test the light relays separately.
  */
 void relayTest() {
   tft.fillScreen(BLACK);
@@ -72,24 +68,21 @@ void relayTest() {
     esp_task_wdt_reset();
   }
 
-#ifdef COLDWATER
-  delay(RELAY_PAUSE);
-  tft.fillScreen(BLACK);
-  for (i = 0; i < NT; i++) {
-    Serial.print("a ");
-    Serial.println(millis());
-    tft.setCursor(0, i * LINEHEIGHT3);
-    // Test one light relay
-    tft.printf("%d. T%dLight", i+1, i+1);
-    Serial.printf("%d. T%dLight\n", i+1, i+1);
-    digitalWrite(LightRelay[i], RELAY_ON);
+  if (switchLights) {
     delay(RELAY_PAUSE);
-    esp_task_wdt_reset();
-    digitalWrite(LightRelay[i], RELAY_OFF);
+    tft.fillScreen(BLACK);
+    for (i = 0; i < NT; i++) {
+      tft.setCursor(0, i * LINEHEIGHT3);
+      // Test one light relay
+      tft.printf("%d. T%dLight", i+1, i+1);
+      Serial.printf("%d. T%dLight\n", i+1, i+1);
+      setLightRelay(i, RELAY_ON);
+      delay(RELAY_PAUSE);
+      esp_task_wdt_reset();
+      setLightRelay(i, RELAY_OFF);
+    }
   }
   esp_task_wdt_reset();
-
-#endif  // COLDWATER
 }
 
 /**
@@ -219,12 +212,31 @@ void setChillRelay(int tank, boolean state) {
     updateShiftRegister();
   }
   strcpy(RelayStateStr[i], state ? "CHL" : "OFF");
-
 }
 
-// This was originally just for turning off heating and cooling, but in COLDWATER we also
-// check lights here.
+/**
+ * Set the light relay on or off.  Note that lights are
+ * always on shift registers, so we don't need a digitalWrite
+ * option.
+ * The shift bits are numbered backward from the end of the byte.
+ */
+void setLightRelay(int tank, boolean state) {
+  if (state) {
+    bitSet(shiftRegByte, LightRelayShift[5 - tank]);
+    updateShiftRegister();
+  } else {
+    bitClear(shiftRegByte, LightRelayShift[5 - tank]);
+    updateShiftRegister();
+  }
+  strcpy(LightStateStr[i], state ? "LGT" : "DRK");
+}
+
+/**
+ * Update the relay states to match the most recent calculations based on temperature.
+ * Also check the lights if specified.
+ */
 void updateRelays() {
+  bool lights = getLightState();
   for (i = 0; i < NT; i++) {
     // Note that controlOutput is on a scale of +/- 10000, where 10000 indicates maximum heating.
     // tempInput is in degrees C.  It is a possibly adjusted version of the sensor temperature output.
@@ -252,14 +264,10 @@ void updateRelays() {
         }
       }
     }
-#ifdef COLDWATER
-    // All will be on or all off.
-    if (lightStatus[lightPos]) {
-      digitalWrite(LightRelay[i], RELAY_ON);
-    } else {
-      digitalWrite(LightRelay[i], RELAY_OFF);
+    if (switchLights) {
+      if (lights) setLightRelay(i, RELAY_ON);
+      else setLightRelay(i, RELAY_OFF);
     }
-#endif  // COLDWATER
   }
 }
 

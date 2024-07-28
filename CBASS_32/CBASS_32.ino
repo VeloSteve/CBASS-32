@@ -150,14 +150,13 @@ short rampSteps = 0;  // Actual defined steps, <= MAX_RAMP_STEPS
 boolean interpolateT = true; // If true, interpolate between ramp points, otherwise step.
 boolean relativeStart = false;  // Start from midnight (default) or a specified time.
 unsigned int relativeStartTime;  // Start time in minutes from midnight
-#ifdef COLDWATER
-// Light plan
-unsigned int lightMinutes[MAX_LIGHT_STEPS];
-byte lightStatus[MAX_LIGHT_STEPS];
-short lightSteps = 0;
-short lightPos = 0; // Current light state
-char lightStateStr[NT][4]; // = {"LLL", "LLL", "LLL", "LLL"}; // [number of entries][characters + null terminator]
-#endif // COLDWATER
+
+// Time in minutes after midnight for lights on and off.  -1 means to do nothing.
+// If lights are used the preferred ways is with the LIGHTON and LIGHTOFF keywords
+// in Settings.ini
+bool switchLights = false;   // If LIGHTON and LIGHTOFF are in Settings.ini, this will be set true.
+int lightOnMinutes = -1, lightOffMinutes = -1;
+char LightStateStr[NT][4]; // [number of entries][characters + null terminator]
 
 //Temperature Variables
 // Note that "controlOutput" was formerly "tempOutput", but it is not in temperature units, so the name was misleading.
@@ -181,7 +180,6 @@ unsigned int SerialOutCount = serialHeaderPeriod + 1;  // Print at the top of an
 char setPointStr[5];  // Was an array of [NT][5], but we only need one at a time.
 char tempInputStr[5];
 char RelayStateStr[NT][4]; // [number of entries][characters + null terminator]
-// char RelayStateStr[][4] = {"OFF", "OFF", "OFF", "OFF"}; // [number of entries][characters + null terminator]
 
 //Specify the links and initial tuning parameters
 // Perhaps with Autotune these would need to be variable, but as
@@ -257,9 +255,7 @@ void setup()
   esp_task_wdt_reset();
 
   readRampPlan();
-  #ifdef COLDWATER
-    readLightPlan();
-  #endif
+
   esp_task_wdt_reset();
   rampOffsets();  // This does not need repeating in the main loop.
 
@@ -329,10 +325,7 @@ void loop()
   getCurrentTargets();
   applyTargets();
   //ShowRampInfo(); // To display on serial monitor.
-#ifdef COLDWATER
-  // Similar to getCurrentTargets/applyTargets, but for lighting.
-  getLightState();
-#endif
+
 
 
   if (now_ms - GRAPHt > GRAPHwindow) {
@@ -391,12 +384,17 @@ void SerialSend()
     SerialOutCount = 0;
   }
   // General data items not tied to a specific tank:
-  Serial.printf("%s,%s,%d,%d,%d,%d,", logLabel, getdate(), now_ms, t.hour(), t.minute(), t.second());
-  logFile.printf("%s,%s,%d,%d,%d,%d,", logLabel, getdate(), now_ms, t.hour(), t.minute(), t.second());
+  Serial.printf("%s,%s,%d,%d,%d,%d,", logLabel.c_str(), getdate(), now_ms, t.hour(), t.minute(), t.second());
+  logFile.printf("%s,%s,%d,%d,%d,%d,", logLabel.c_str(), getdate(), now_ms, t.hour(), t.minute(), t.second());
   // Per-tank items
   for (i=0; i<NT; i++) {
-    Serial.printf("%.2f,%.2f,%.2f,%.1f,%s,", setPoint[i], tempInput[i], tempT[i], controlOutput[i], RelayStateStr[i]);
-    logFile.printf("%.2f,%.2f,%.2f,%.1f,%s,", setPoint[i], tempInput[i], tempT[i], controlOutput[i], RelayStateStr[i]);
+    if (switchLights) {
+      Serial.printf("%.2f,%.2f,%.2f,%.1f,%s,%s,", setPoint[i], tempInput[i], tempT[i], controlOutput[i], RelayStateStr[i], LightStateStr[i]);
+      logFile.printf("%.2f,%.2f,%.2f,%.1f,%s,%s,", setPoint[i], tempInput[i], tempT[i], controlOutput[i], RelayStateStr[i], LightStateStr[i]);    
+    } else {
+      Serial.printf("%.2f,%.2f,%.2f,%.1f,%s,", setPoint[i], tempInput[i], tempT[i], controlOutput[i], RelayStateStr[i]);
+      logFile.printf("%.2f,%.2f,%.2f,%.1f,%s,", setPoint[i], tempInput[i], tempT[i], controlOutput[i], RelayStateStr[i]);
+    }
   }
   printlnBoth();
   Serial.flush();

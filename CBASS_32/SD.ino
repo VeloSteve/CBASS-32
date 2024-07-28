@@ -88,7 +88,8 @@ void readRampPlan() {
   double tempRead;
   int tank = 0;
   int extra = 0;
-  boolean ntFail = false;
+  bool ntFail = false;
+  bool foundON = false, foundOFF = false; 
   int upTo8[8];  // Read this many temperatures if in the file, then check against NT.
   if (SDF.exists("/Settings.ini")) {
     Serial.println("The ramp plan exists.");
@@ -144,6 +145,43 @@ void readRampPlan() {
         settingsFile.close();
         fatalError(F("Unsupported interpolation option.  Must be LINEAR or STEP"));
       }
+    } else if (!strncmp(lineBuffer, "LIGHTON", 7)) {
+      pos = 7;
+      while (isSpace(lineBuffer[pos])) pos++;
+      // There must be a time here, in 24-hour HH:MM or H:MM format.
+      Serial.print("Reading ON time.");
+      nParse = sscanf(lineBuffer + pos, "%d:%d", &hh, &mm);
+      Serial.printf("Parsed %d item(s).  pos = %d, lineBuffer >%s<\n", nParse, pos, lineBuffer);
+      if (nParse != 2) {
+        settingsFile.close();
+        fatalError(F("LIGHTON keyword must be followed by a time in 24-hour HH:MM or H:MM format."));
+      } else if (hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+          settingsFile.close();
+          fatalError(F("In LIGHTON hour must be from 0 to 23 and minutes from 0 to 59."));
+      } else {
+        lightOnMinutes = hh*60 + mm;
+        Serial.printf("Found LIGHTON value %d.\n", lightOnMinutes);
+        foundON = true;
+      }
+
+    } else if (!strncmp(lineBuffer, "LIGHTOFF", 8)) {
+      pos = 8;
+      while (isSpace(lineBuffer[pos])) pos++;
+      // There must be a time here, in 24-hour HH:MM or H:MM format.
+      Serial.print("Reading OFF time.");
+      nParse = sscanf(lineBuffer + pos, "%d:%d", &hh, &mm);
+      if (nParse != 2) {
+        settingsFile.close();
+        fatalError(F("LIGHTOFF keyword must be followed by a time in 24-hour HH:MM or H:MM format."));
+      } else if (hh < 0 || hh > 23 || mm < 0 || mm > 59) {
+          settingsFile.close();
+          fatalError(F("In LIGHTOFF hour must be from 0 to 23 and minutes from 0 to 59."));
+      } else {
+        lightOffMinutes = hh*60 + mm;
+        Serial.printf("Found LIGHTOFF value %d.\n", lightOffMinutes);
+        foundOFF = true;
+      }
+
     } else if (isDigit(lineBuffer[0])) {
       // 07:00       26.00  26.00  26.00  26.00	24.0
       // Time and temperature lines (and only such lines) should start with a digit.
@@ -196,6 +234,7 @@ void readRampPlan() {
   } else {
     printRampPlan();
   }
+  switchLights = foundON && foundOFF;
 }
 
 // If no second argument, expect a keyword, not a pin.
@@ -350,115 +389,7 @@ void printAsHM(unsigned int t) {
 }
 
 
-#ifdef COLDWATER
-//This block of code is only for systems with lights controlled by relays as specified in LightRelay[]
-/**
-   Read the content of LightPln.ini  Lines can be comments or an on or off time.
-   All tanks switch together, so there is only one on or off per line.
-   It is assumed that we want the last state specified, wrapping to the previous day if needed.  In the
-   example below, if the system starts at 6 AM, lights should be off.
 
-  // A comment - must start at the beginning of a line
-  7:00 1
-  19:00 0
-  // The lines above mean on at 7 AM, off at 7 PM.
-*/
-void readLightPlan() {
-  Serial.println("Reading light plan");
-  lightSteps = 0;
-  // State machine:
-  const byte ID = 0;      // Identifying what type of line this is.
-  const byte SWITCH = 2;  // Read on or off as 1 or 0.
-  const byte NEXT = 3;    // Going to the start of the next line, ignoring anything before.
-  byte state = 0;
-  if (SDF.exists("/LightPln.ini")) {
-    Serial.println("The light plan exists.");
-    settingsFile = SDF.open("/LightPln.ini", O_RDONLY);
-  } else {
-    fatalError(F("---ERROR--- No light plan file!"));
-  }
-  char c;
-  while (settingsFile.available()) {
-    c = settingsFile.read();
-    switch (state) {
-      case ID:
-        // Valid characters are a digit of a number, slash, or whitespace
-        if (c == '/') {
-          state = NEXT;
-        } else if (isDigit(c)) {
-          // Time at the start of a line must be the beginning of a switch point
-          // Check that there is space to store a new step.
-          if (lightSteps >= MAX_LIGHT_STEPS) {
-            fatalError(F("Not enough light steps allowed!  Increase MAX_LIGHT_STEPS in Settings.ini"));
-            return;
-          }
-          lightMinutes[lightSteps] = timeInMinutes(c);
-          state = SWITCH;
-        } else if (isSpace(c)) {
-          state = ID;  // ignore space or tab, keep going
-        } else {
-          Serial.print("---ERROR in settings.txt.  Invalid line with ");
-          Serial.print(c);
-          Serial.println("---");
-        }
-        break;
-      case SWITCH:
-        // Get an on off state or fail.
-        if (isSpace(c) || c == ',') break;  // keep looking
-        if (isDigit(c) && (c == '0' || c == '1')) {
-          lightStatus[lightSteps] = (c == '0') ? 0 : 1;
-          esp_task_wdt_reset();
-        } else {
-          Serial.print("---ERROR in settings.txt--- Light switch state needed here. Got c = ");
-          Serial.println(c);
-          fatalError(F("Incomplete light line."));
-        }
-        lightSteps++;
-        state = NEXT;
-        break;
-      case NEXT:
-        // Consume everything until any linefeed or characters have been removed, ready for  new line.
-        if (c == 10 || c == 13) {  // LF or CR
-          // In case we have CR and LF consume the second one.
-          c = settingsFile.peek();
-          if (c == 10 || c == 13) {
-            c = settingsFile.read();
-          }
-          state = ID;
-        }
-        break;
-      default:
-        Serial.println("---ERROR IN LIGHT SETTINGS LOGIC---");
-        fatalError(F("Bad light settings logic"));
-    }
-  }
-  // It is okay to end in the NEXT or ID state, but otherwise we are mid-line and it's an error.
-  if (state != NEXT && state != ID) {
-    Serial.print("---ERROR out of light data with step incomplete.  state = ");
-    Serial.println(state);
-    fatalError(F("Bad light settings line"));
-  }
-
-  settingsFile.close();
-  printLightPlan();
-}
-
-void printLightPlan() {
-  printBoth("Lighting Plan");
-  printlnBoth();
-  printBoth("Settings are based on time of day.");
-  printlnBoth();
-  printBoth("Time    Light State");
-  printlnBoth();
-  for (short k = 0; k < lightSteps; k++) {
-    printAsHM(lightMinutes[k]);
-    printBoth("   ");
-    printBoth(lightStatus[k]);
-    printlnBoth();
-  }
-}
-
-#endif  // COLDWATER
 
 /**
  * Make a new copy of Settings.ini on the SD card from the current settings.

@@ -87,29 +87,23 @@ void PIDinit()
   }
 }
 
-#ifdef COLDWATER
+
 /**
  * Get the desired lighting state (on/off) for the current time.
  * Note that we don't use relative time for lighting - it's assumed to be
  * chosen relative to local daylight.
  */
-void getLightState() {
+bool getLightState() {
   unsigned int dayMin = t.minute() + 60 * t.hour();
 
-  // We can be before the specified points, between two, or after all of them.
-  // Unlike temperatures, we just want to use the most recent specified state, which
-  // may wrap back to the previous midnight.
-  // lightPos is 0 at the start of a run, and then points to the latest position used.
+  if (lightOnMinutes < 0) return false;
 
-  // If the actual time is less than the current start point, we are wrapping past midnight.
-  // Point to the last time of day.
-  if (lightMinutes[lightPos] > dayMin) lightPos = lightSteps;
-  else {
-    // Move up if necessary.
-    while (lightMinutes[lightPos+1] <= dayMin && lightPos < rampSteps - 1) {
-      lightPos++;
-    }
-  }
-  // lightPos now points to the correct lightStatus with no further calculations.
+  // For positive time values there are three cases: between ON and OFF, after OFF,
+  // and before ON.  We assume that ON is before OFF!
+  // TODO: consider what to do if ON is later than OFF, turning lights on overnight.
+  if (dayMin < lightOnMinutes) return false;
+  if (dayMin >= lightOffMinutes) return false;
+  if (lightOnMinutes <= dayMin && dayMin < lightOffMinutes) return true;
+  Serial.printf("Light on (%d min) must be before light off time (%d min).\n", lightOnMinutes, lightOffMinutes);
+  return false;
 }
-#endif // COLDWATER

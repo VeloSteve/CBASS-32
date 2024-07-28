@@ -1,15 +1,17 @@
-#define NT 4 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.
+#define NT 4 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.  With light control NT <= 5.
 #define RELAY_PAUSE 500 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
 
 // The original CBASS from the Barshis lab uses Iceprobe chillers.
-// The Logan lab modifications use moving cold water, and add light controls.
+// The Logan lab modifications use moving cold water, and adds light controls.
+// This definition had other purposes, but for not it only affects one offset value,
+// which should be checked.
 #undef COLDWATER  //#define for liquid cooling and lights.  Omit or #undef for the original behavior.
 
 // WiFi can connect to an existing network and become a server (station) at the assigned
 // address or it can create its own network and act as its own WiFi access point.
 #define WIFIAP 1
 #define WIFISTATION 2
-#define WIFIMODE WIFIAP    // Choose one of the two above
+#define WIFIMODE WIFISTATION    // Choose one of the two above
 
 #define MAGICWORD "Auckland"
 
@@ -47,38 +49,26 @@ const double TANK_TEMP_CORRECTION[] = {0, 0, 0, 0, 0, 0, 0, 0}; // Is a temperat
 #define RELAY_ON 1
 #define RELAY_OFF 0
 
+// CBASS-32 uses up to 16 relays.  Unlike CBASS-R, there is no longer a custom board for
+// direct control of 12V water pumps for cold-water systems.  Those systems will use pumps
+// powered from the power bar, typically using USB adapters.  
+
 // Arduino pin numbers for relays for tanks 1 to 4.
-// The integers correspond to the CBASS-R v 1.2 schematic.
+// The integers correspond to the CBASS-32 V1.0 schematic.
 const int HeaterRelay[] = {A0, A1, D6, D2}; // A0=D17, A1=D18
+const int ChillRelay[] = {A7, A6, A3, A2}; // Digital synonyms, A7 = D24, A6 = D23, A3 = D20 A2 = D19.
 
 // Tanks 5-8, if they exist, are controlled by a shift register, so instead
 // of pin numbers we associated tanks with bits 1-8.  Be aware that locations
 // 0-3 in the arrays correspond to tanks 5-8. 
 const byte HeaterRelayShift[] = {2, 4, 5, 0};  // These are the bit location in the control
 const byte ChillRelayShift[] = {7, 6, 3, 1};   // byte.  The pin numbers on the DB9 will be 1-4 and 6-9.
-// count 12 (expect chill) gives heater 3
-// count 13 (expect 3) gives heater 1
 
-#ifdef COLDWATER
-// TODO: replace relays 9-16 with shift register commands.
-const int ChillRelay[] = {0, 1, 2, 3};   // Bits, not pins!
-const int LightRelay[] = {A7, A6, A3, A2}; 
-const short MAX_LIGHT_STEPS = 4; // typically we have only 2 for sunrise and sunset
-#else
-const int ChillRelay[] = {A7, A6, A3, A2}; // Digital synonyms, A7 = D24, A6 = D23, A3 = D20 A2 = D19.
-#endif
+// Lights are also controlled by the shift register, using some of the same bits.  This means that
+// systems with lights may use no more than 5 tanks, since 16 switched outlets are available.  To
+// simplify this case, light pins are numbered in reverse order to the heat and chill pins.
+const byte LightRelayShift[] = {0, 1, 5, 3, 4};
 
-/* 
- *  Old version kept for DB9 pins and colors:
-#define T1HeaterRelay 17  // T1 Heat DB9 pin 9 black wire Arduino Digital I/O pin number 17
-#define T1ChillRelay  22  // T1 Chill DB9 pin 1 brown wire Arduino Digital I/O pin number 22
-#define T2HeaterRelay 15  // T2 Heat DB9 pin 8 white wire Arduino Digital I/O pin number 15
-#define T2ChillRelay  24 // T2 Heat DB9 pin 2 red wire Arduino Digital I/O pin number 24
-#define T3HeaterRelay 16  // T3 Heat DB9 pin 7 purple wire Arduino Digital I/O pin number 16
-#define T3ChillRelay  23  // T3 Chill DB9 pin 3 orange Arduino Digital I/O pin number 23
-#define T4HeaterRelay 25 // T4 Heat DB9 pin 6 blue wire Arduino Digital I/O pin number 25
-#define T4ChillRelay  14  // T4 Chill DB9 pin 4 yellow wire Arduino Digital I/O pin number 14
- */
 
 // The shift register for the second DB9 connector (closest to the SD card) is controlled
 // by these pins

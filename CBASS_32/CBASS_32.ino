@@ -223,7 +223,7 @@ void setup()
   esp_task_wdt_reset();
 
   startDisplay();             // TFT display
-  Serial.println("\n===== Booting CBASS-32 45=====");
+  Serial.println("\n===== Booting CBASS-32 =====");
   Serial.printf("Running on core %d.\n", xPortGetCoreID());
   tftMessage("    Less wiring,\n    more science!", false);
 

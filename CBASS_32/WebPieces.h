@@ -28,6 +28,7 @@ const char linkList[] PROGMEM = R"rawliteral(
 <li><a href="/ResetRampPlan">Reset ramp plan to example values.</a></li>
 <li><a href="/LogManagement">Manage the log file.</a></li>
 ~UPLOAD_LINK~
+<li><a href="/ResetSPI">Reset Display (SPI reset).</a></li>
 <li><a href="/Reboot">Reboot CBASS.</a></li>
 </ul>
 Items in the lower section can change the experimental plan or delay logging.
@@ -188,6 +189,23 @@ const char rebootHTML[] PROGMEM = R"rawliteral(
   </head><body>
   <div class="container"><div class="wrapper flex fittwowide">
     <h1>Rebooting CBASS-32</h1>
+    At ~DATETIME~
+    <br/>
+    The links below should be available in about 12 seconds, and full operation in about 18 seconds.
+  </div>
+    ~LINKLIST~
+  </div>
+  </body></html>
+)rawliteral";
+
+const char webResetSPI[] PROGMEM = R"rawliteral(
+    <html><head><title>~TITLE~
+  </title>
+  <link rel="stylesheet" type="text/css" href="page.css" />  
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head><body>
+  <div class="container"><div class="wrapper flex fittwowide">
+    <h1>Resetting CBASS-32 SPI</h1>
     At ~DATETIME~
     <br/>
     The links below should be available in about 12 seconds, and full operation in about 18 seconds.

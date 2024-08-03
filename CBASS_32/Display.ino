@@ -12,6 +12,48 @@ void startDisplay() {
 }
 
 /**
+ * The display can go all white and stay that way until a hard reboot.  Forums
+ * suggest:
+ * - Loose ribbon cable on the back of the display board.
+ * - Other poor connections, possibly with low voltage.
+ * - A bad transistor (images show it and suggest a replacement)
+ * - incorrect pin mode.
+ *
+ * But note that analog/digital is not explicity set.  An analogRead(), 
+ * digitalRead(), etc. sets it to match.
+ * 
+ * The display connects to DC, CS, MOSI, SCK, 3V3, and GND.
+ *
+ * As a test, see if calling this occasionally, or perhaps as a web action,
+ * clears the condition.
+ *
+ * It could be interesting to power cycle the display, but that would mean hardware
+ * changes to make the 3.3V supply switchable.
+ */
+void resetDisplayPins() {
+  SPI.end();
+  //SPI.begin();
+
+  startDisplay();  // KEY!
+
+  // SD card too?
+  SDinit();
+
+  // These four lines essentially repeat the beginning of Adafruit_SPITFT::initSPI
+
+  pinMode(TFT_CS, OUTPUT);
+  digitalWrite(TFT_CS, HIGH);
+  pinMode(TFT_DC, OUTPUT);
+  digitalWrite(TFT_DC, HIGH);
+    // Also be sure SD pin wasn't left in a bad state
+  pinMode(SD_CS, OUTPUT);
+  digitalWrite(SD_CS, HIGH);
+  // We are trying to overcome a white screen. Can it be set black?
+  tft.fillScreen(BLACK);
+
+}
+
+/**
  * This is meant for status messages during startup which will
  * stay on the screen until the next step or error.
  * The "pass" static variable allows subsequent lines to stack.

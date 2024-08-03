@@ -153,6 +153,17 @@ void defineWebCallbacks() {
     request->send(response);
   });
 
+  // Can resetting the SPI bus clear errors with the display and/or SD card?
+  // Note that there is no reset function, I'm just going to end, begin, and toggle the 
+  // CS pin values to see whether it helps.
+  server.on("/ResetSPI", HTTP_GET, [](AsyncWebServerRequest *request) {
+    Serial.println("SPI reset?");
+    p_title = "Attept to reset SPI";
+    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", webResetSPI, processor);
+    response->addHeader("Server", "ESP Async Web Server");
+    request->send(response);
+    resetDisplayPins();
+  });
 
   // Javascript for the ramp plan
   server.on("/rampPlan.js", HTTP_GET, [](AsyncWebServerRequest *request) {

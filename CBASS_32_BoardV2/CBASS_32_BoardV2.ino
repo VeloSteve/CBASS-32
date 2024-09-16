@@ -1,4 +1,9 @@
 /*
+WARNING: do not upgrade the Arduino ESP32 board definition past 2.0.13.
+    The OneWire library 2.3.8 is no longer compatible and temperature monitoring will fail.
+    This may change when a newer OneWire is release, but be prepared to test.  Some recommend OneWireNg 
+    as a replacement, but this has not yet been tested with CBASS-32.
+
 Test notes 6 Sep 2024
 Started a V0.2 and V 2.0 board at about 7:35 AM.
 Both have a display, SD card, and sensors attached.

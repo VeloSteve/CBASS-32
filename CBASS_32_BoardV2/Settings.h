@@ -1,4 +1,4 @@
-#define NT 4 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.  With light control NT <= 5.
+#define NT 8 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.  With light control NT <= 5.
 #define RELAY_PAUSE 500 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
 
 #undef HDEBUG
@@ -24,8 +24,8 @@
     const char *password = "Monterey";  // Minimum length 7 characters!
 #else
     // Credentials of an existing network.
-    const char *ssid = "Anthozoa";
-    const char *password = "16391727";
+    const char *ssid = "your wifi";
+    const char *password = "passsword here";
 
 #endif
 
@@ -53,39 +53,102 @@ const double TANK_TEMP_CORRECTION[] = {0, 0, 0, 0, 0, 0, 0, 0}; // Is a temperat
 
 // CBASS-32 uses up to 16 relays.  Unlike CBASS-R, there is no longer a custom board for
 // direct control of 12V water pumps for cold-water systems.  Those systems will use pumps
-// powered from the power bar, typically using USB adapters.  
+// powered from the power bar, typically USB-powered pumps.
+#define SHIFT_PINS 16 // How many shift register pins to address.  Allows for future expansion.
 
-// Arduino pin numbers for relays for tanks 1 to 4.
-// The integers correspond to the CBASS-32 V1.0 schematic.
-const int HeaterRelay[] = {A0, A1, D6, D2}; // A0=D17, A1=D18
-const int ChillRelay[] = {A7, A6, A3, A2}; // Digital synonyms, A7 = D24, A6 = D23, A3 = D20 A2 = D19.
-
-// Tanks 5-8, if they exist, are controlled by a shift register, so instead
-// of pin numbers we associated tanks with bits 1-8.  Be aware that locations
-// 0-3 in the arrays correspond to tanks 5-8. 
-const byte HeaterRelayShift[] = {2, 4, 5, 0};  // These are the bit location in the control
-const byte ChillRelayShift[] = {7, 6, 3, 1};   // byte.  The pin numbers on the DB9 will be 1-4 and 6-9.
-
+// All tanks are controlled by shift registers starting with CBASS-32 V2.0.
+// for up to 16 tanks.
+// Two shift registers are daisy-chained together.  The first is connected to the
+// incoming data line and to DB9_UP_1, so it controls the first 4 tanks.  The
+// second receives data as it shifts out of the first and is connected to DB9_DOWN_2,
+// controlling the remaining tanks and/or lights.
+// The incoming data is stored in an integer with the lowest SHIFT_PINS bits used to 
+// control the relays and the rest set to zero.
+// Bits are placed into the shift registers starting with the most significant bit first,
+// so for example if the value is 1100 0000 0000 0001 (spaces added for readabilty)
+// the last two pins (QG and QH) on the second register and the first pin (QA) on the second register will
+// be enabled.  By the way, those bits printed in base 10 will be 1 + 32,768 + 65,536 = 93,305.
+// The mapping is
+// reg-   reg  pin    net   DB9 controlled by
+// ister  pin  label        pin bit (0 = low, 15 = high)
+// 1      15    QA    CH_4  1    0
+// 1      1     QB    CH_2  3    1
+// 1      2     QC    CH_3  2    2
+// 1      3     QD    HT_1  6    3
+// 1      4     QE    HT_2  7    4
+// 1      5     QF    CH_1  4    5
+// 1      6     QG    HT_3  8    6
+// 1      7     QH    HT_4  9    7
+// 2      15    QA    HT_8  1    8
+// 2      1     QB    CH_8  3    9
+// 2      2     QC    HT_5  2   10
+// 2      3     QD    CH_7  6   11
+// 2      4     QE    HT_6  7   12
+// 2      5     QF    CH_6  4   13
+// 2      6     QG    HT_7  8   14
+// 2      7     QH    CH_5  9   15
+// Column names:
+// register = the shift register, 1 or 2  (labeled 1 and 0 on the board - oops)
+// reg pin = the pin number on the shift register chip.
+// pin label = the pin as labeled on the datasheet and schematic
+// net = the connection name on the schematic.  HT = heat, CH = chill, number = tank number
+// DB9 pin = the pin number on the DB9 connector
+// bit = the bit location in the control value  (shiftRegBits)
+//
+// Remember that DB9_UP_1 controls tanks 1-4, and is controlled by the lowest-value bits.
+const byte HeaterRelay[] = {3, 4, 6, 7, 10, 12, 14, 8}; 
+const byte ChillRelay[] = {5, 1, 2, 0, 15, 13, 11, 9};   
 // Lights are also controlled by the shift register, using some of the same bits.  This means that
-// systems with lights may use no more than 5 tanks, since 16 switched outlets are available.  To
-// simplify this case, light pins are numbered in reverse order to the heat and chill pins.
-const byte LightRelayShift[] = {0, 1, 5, 3, 4};
+// systems with lights may use no more than 5 tanks, since 16 switched outlets are available.  Lights
+// will be controlled by the bits "left over" beyond tank 5.
+const byte LightRelay[] = {12, 14, 8, 13, 11, 9};
 
+// Example bit values with all heaters on:
+// 0001101110101010
+// numbers 1, 3, 5, 7, 8, 9, 11, 12 from right (0 based) - matches array above, but wrong relays are on!
+// 0001101110101010
+// 0000111101100011
+//     HHHH-HH---HH
+//     8743-21---65 expected
+// H8, C8 are lit on 2nd bar.
+// Just record what lights up
+/*
+1  c4
+2  c2
+4  c3
+8  h1
+16  h2
+32  c1  
+64  h3
+128 h4
+256 h8
+512 c8
+1024 h5
+2048 c7
+4096 h6
+8192 c6
+16384 h7
+32768 c5
 
-// The shift register for the second DB9 connector (closest to the SD card) is controlled
-// by these pins
+What about H7 and C5? or Bits 0 and 1?
+ */
+
+// The shift registers are controlled by these pins
 #define LATCH_PIN D8    // RCLK
 #define DATA_PIN D7   // SER
 #define CLOCK_PIN D9  // SRCLK
 
 // Other Arduino pins
 #define SENSOR_PIN 21  // Sensor pin must be the ESP GPIO number, NOT the Arduino number like the rest!
-#define TFT_CS   D4
-#define TFT_DC   D3
+#define TFT_CS D4
+#define TFT_DC D5
+#define SPI2_SCK D2
+#define SPI2_COPI D3
+
 // SD card.  Note that there is a second SD card on the back of the display, which we don't currently use.
 // This is for the active one.
 // unconnected #define SD_DETECT  10
-#define SD_CS  D5
+#define SD_CS  D6
 // SdFat has more options than SD.h.  This gives a reasonable set of defaults.
 #define SD_FAT_TYPE 1             // 1 implies FAT16/FAT32
 #define SPI_CLOCK SD_SCK_MHZ(50)  // 50 is the max for an SD.  Set lower if there are problems.

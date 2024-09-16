@@ -21,7 +21,7 @@
 #define FORMAT_SPIFFS_IF_FAILED true
 
 #include <SD.h>
-#define SD_CS D5
+#define SD_CS D6
 
 void deleteFile(fs::FS &fs, const char * path){
     Serial.printf("Deleting file: %s\r\n", path);
@@ -175,8 +175,8 @@ void setup() {
   copyFile_toFS(SPIFFS, "/htdocs/plus_circle.png");
   copyFile_toFS(SPIFFS, "/htdocs/favicon.ico");
   copyFile_toFS(SPIFFS, "/htdocs/page.css");
-  copyFile_toFS(SPIFFS, "/htdocs/plotly.js");
-  copyFile_toFS(SPIFFS, "/htdocs/fullScreenIcon.svg");
+  //copyFile_toFS(SPIFFS, "/htdocs/plotly.js");
+  //copyFile_toFS(SPIFFS, "/htdocs/fullScreenIcon.svg");
   
 
   Serial.println("\nSPIFFS dir:");

@@ -64,6 +64,11 @@
 #include <ESPAsyncWebSrv.h>
 #include "WebPieces.h"
 
+#ifdef HDEBUG
+long RESETwindow = 30000;
+long RESETt;  // Allow extra time at the start.
+#endif
+
 // Add a watchdog timer so the system restarts if it somehow hangs.  This could prevent a fire in extreme cases!
 #include <esp_task_wdt.h>
 #define WDT_TIMEOUT 28  // How long to wait before rebooting in case of trouble (seconds).
@@ -221,6 +226,8 @@ void setup()
   Serial.begin(38400);    // 9600 traditionally. 38400 saves a bit of time
   delay(5000);            // Serial does not initialize properly without a delay.
   esp_task_wdt_reset();
+  Serial.println("Heap info before most setup steps:");
+  Serial.print("heap_caps_get_largest_free_block(MALLOC_CAP_32BIT) = "); Serial.println(heap_caps_get_largest_free_block(MALLOC_CAP_32BIT));
 
   startDisplay();             // TFT display
   Serial.println("\n===== Booting CBASS-32 =====");
@@ -289,6 +296,10 @@ void setup()
   SERIALt = millis() - SERIALwindow;
   LCDt = millis() - LCDwindow;
   GRAPHt = millis() - GRAPHwindow;
+  // But for server resets apply a delay.
+#ifdef HDEBUG
+  RESETt = millis(); // + RESETwindow;
+#endif
 }
 
 /**
@@ -346,6 +357,47 @@ void loop()
 
   //***** UPDATE SERIAL MONITOR AND LOG *****
   if (now_ms - SERIALt > SERIALwindow) {
+#ifdef HDEBUG
+    // Serial.print("heap_caps_get_free_size() = "); Serial.println(heap_caps_get_free_size());
+    Serial.print("heap_caps_get_largest_free_block(MALLOC_CAP_32BIT) = "); Serial.println(heap_caps_get_largest_free_block(MALLOC_CAP_32BIT));
+    heap_caps_print_heap_info(MALLOC_CAP_32BIT);  Serial.println();
+    if (now_ms > RESETwindow + RESETt) {
+      Serial.printf("In reset, now = %ld, RESETt = %ld, RESETwindow = %ld .", now_ms, RESETt, RESETwindow);
+      Serial.println("===== RESETTING WEB SERVER =====");
+      // Reset and define does not re-enable a broken server.  Is it
+      // 1) At the WiFi level?
+      // 2) A full server destroy/init is needed?
+      // Next observation: a server end/begin causes subsequent requests to be refused actively:
+      //     URLError: <urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>
+      // added disconnetWiFi/connectWiFi.  Runs longer but still reaches a state where requests are refused.  May also be
+      // affecting heap  which starts with largest free block of 8257524 but was lower after an hour or so.  Does NOT drop after
+      // 170 web requests and an handful of the restarts below.
+      // Got to 262 requests before failing, but restarting the stress test after one or more server restarts fails:
+      //     URLError: <urlopen error [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond>
+      // Next add   WiFi.mode(WIFI_OFF);  in disconnectWiFi().
+      // Start test after first reconnect.  Actually seems faster than before!  Just over 0.1 seconds for most requests.
+      // Test stopped on 128th request, died after next restart.  A FRESH RUN WORKS, but only for 15 requests.
+      // Again on the same CBASS-32 run: long pause at 4, but continued; another long pause at 19 (RampPlan), then decently to another long pause at 89 and dies!
+      // Yet again: Starts well, to 103 with no long delays, then fails.  No CBASS crashes.  These remaining test failures could
+      // be due simply to calling when the server is in the middle of a restart.
+      // Note that the last round of tests above was with the "misbehaving" test script which does not close connections.
+      //
+      // Next issue: this works well in Station mode, but in access point mode it would mean constantly reconnecting the user's device to WiFi.
+      // We really need to DETECT what is going wrong.
+      server.reset();
+      server.end();
+      disconnectWiFi();
+      connectWiFi();
+      defineWebCallbacks();
+      server.begin();
+
+      RESETt = now_ms;
+
+      ///////////////  Also reset display pins proactively.  Maybe we won't see
+      // a white display so often.
+      resetDisplayPins();
+    }
+#endif
     // Logging is skipped during certain web operations.
     if (!logPaused) {
       SerialReceive();

@@ -26,6 +26,8 @@ char sdBuffer[sdBufLen];
 
 void SDinit() {
   pinMode(SD_CS, OUTPUT);  // probably redundant
+  digitalWrite(SD_CS, HIGH);  // As is this, but some users find it helps with SDfat.
+  Serial.println("SDinit now confirms that SD_CS is OUTPUT"); //, set HIGH");
 
   // Initialize the SD card.
   bool init = true;

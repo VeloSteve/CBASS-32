@@ -44,3 +44,14 @@ IPAddress connectWiFi() {
   return connectAsStation();
 #endif
 }
+
+void disconnectWiFi() {
+#if WIFIMODE == WIFIAP
+  WiFi.softAPdisconnect();
+#else
+  // What's the equivalent?  
+  WiFi.disconnect();  // This has arguments.
+  WiFi.mode(WIFI_OFF);
+  delay(100);
+#endif
+}

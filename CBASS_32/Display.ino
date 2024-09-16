@@ -9,6 +9,7 @@ void startDisplay() {
     // A start point for text size and color.  If changed elsewhere, change it back.
     tft.setTextSize(2);  // A reasonable size. 1-3 (maybe more) are available.
     tft.setTextColor(WHITE);
+    Serial.println("Initialized display");
 }
 
 /**
@@ -33,18 +34,26 @@ void startDisplay() {
 void resetDisplayPins() {
   SPI.end();
   //SPI.begin();
+  // Does it help to toggle the value with some delay?
+  delay(10);
+  digitalWrite(TFT_CS, LOW);
+  delay(10);
+  digitalWrite(TFT_CS, HIGH);
+  delay(10);
 
   startDisplay();  // KEY!
 
   // SD card too?
-  SDinit();
+  // Often crashes after the reset.  Can we NOT reinit?
+  //SDinit();
 
   // These four lines essentially repeat the beginning of Adafruit_SPITFT::initSPI
 
   pinMode(TFT_CS, OUTPUT);
   digitalWrite(TFT_CS, HIGH);
   pinMode(TFT_DC, OUTPUT);
-  digitalWrite(TFT_DC, HIGH);
+  
+  //digitalWrite(TFT_DC, HIGH);
     // Also be sure SD pin wasn't left in a bad state
   pinMode(SD_CS, OUTPUT);
   digitalWrite(SD_CS, HIGH);

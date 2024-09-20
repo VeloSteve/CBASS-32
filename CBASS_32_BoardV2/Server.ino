@@ -1265,24 +1265,6 @@ void pauseLogging(boolean a) {
   }
 }
 
-/*
-struct DataPoint
-{
-   DateTime time; 
-   double target[NT];
-   double actual[NT];
-};
-*/
-DataPoint makeDataPoint(unsigned long timestamp, DateTime t, double targ[], double a[]) {
-  DataPoint d;
-  d.timestamp = timestamp;
-  d.time = t;
-  memcpy(&d.target, &targ[0], NT*sizeof(double));
-  memcpy(&d.actual, &a[0], NT*sizeof(double));
-
-  return d;
-}
-
 /**
  * Convert a single datapoint to JSON for sending to the graphing page.
  * This is meant to be enclosed in an outer list, so don't include NT,

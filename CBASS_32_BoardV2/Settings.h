@@ -219,5 +219,13 @@ struct DataPoint
   DateTime time; 
   double target[NT];
   double actual[NT];
+    // A constructor so this can be built automatically be emplace_back
+  DataPoint(long unsigned int t, DateTime dt, double tar[NT], double act[NT]) {
+    timestamp = t;
+    time = dt;
+    //target = tar;
+    memcpy(&target, &tar[0], NT*sizeof(double));
+    memcpy(&actual, &act[0], NT*sizeof(double));
+  } 
 };
 

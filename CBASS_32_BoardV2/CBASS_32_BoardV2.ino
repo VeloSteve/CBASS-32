@@ -183,7 +183,6 @@ void defineWebCallbacks();
 void checkSD(char* txt);
 void setupMessages();
 void pauseLogging(boolean a);
-DataPoint makeDataPoint(unsigned long timestamp, DateTime t, double targ[], double a[]);
 String dataPointToJSON(DataPoint p);
 void dataPointPrint(DataPoint p);
 
@@ -270,7 +269,7 @@ char RelayStateStr[NT][4]; // [number of entries][characters + null terminator]
 // A vector of PID Controllers which will be instantiated in setup().
 std::vector<PID> pids;
 // A vector of DataPoints for graphing.
-const int maxGraphPoints = (int)6*3600/(GRAPHwindow/1000); // Allow up to 6 hours of points!
+const int maxGraphPoints = (int)6*3600/((float)GRAPHwindow/1000); // Allow up to 6 hours of points!
 std::vector<DataPoint> graphPoints;
 
 // Formerly "printDate" No spaces or commas.  Otherwise just something that gets logged.
@@ -291,9 +290,9 @@ void setup()
     pids.emplace_back(PID(&tempInput[i], &controlOutput[i], &setPoint[i], KP, KI, KD, DIRECT));
   }
 
-  // Learning point: the sketch will not load of the line below is active, even though
-  // it compiles with no trouble!  Fortunately, this line doesn't seem necessary.
-  //graphPoints.reserve(maxGraphPoints);
+  // Reserve all the memory for the graph data used in the web interface.  This prevents wasted time and 
+  // memory later.  In one case this prevented the sketch from loading, so try commenting this if there is a problem.
+  graphPoints.reserve(maxGraphPoints);
 
   // Start "reset if hung" watchdog timer. 8 seconds is the longest available interval.
   esp_task_wdt_init(WDT_TIMEOUT, true);
@@ -411,7 +410,7 @@ void loop()
 
   if (now_ms - GRAPHt > GRAPHwindow) {
     if (graphPoints.size() >= maxGraphPoints) graphPoints.erase(graphPoints.begin());
-    graphPoints.emplace_back(makeDataPoint(now_ms, t, setPoint, tempT));
+    graphPoints.emplace_back(now_ms, t, setPoint, tempT);
     //Serial.printf("graphPoints size is now %d elements. Est. total bytes = %d Stack high water = %d.\n", 
     //    graphPoints.size(), graphPoints.size()*sizeof(DataPoint) + sizeof(graphPoints), uxTaskGetStackHighWaterMark( NULL ));
     GRAPHt += GRAPHwindow;

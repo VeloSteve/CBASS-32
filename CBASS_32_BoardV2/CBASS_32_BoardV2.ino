@@ -303,9 +303,6 @@ void setup()
   Serial.begin(38400);    // 9600 traditionally. 38400 saves a bit of time
   delay(5000);            // Serial does not initialize properly without a delay.
   esp_task_wdt_reset();
-  Serial.println("Heap info before most setup steps:");
-  Serial.print("heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) = "); Serial.println(heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
-  Serial.print("heap_caps_get_largest_free_block(MALLOC_CAP_32BIT) = "); Serial.println(heap_caps_get_largest_free_block(MALLOC_CAP_32BIT));
 
   startDisplay();             // TFT display
   Serial.println("\n===== Booting CBASS-32 =====");
@@ -430,14 +427,9 @@ void loop()
 
   //***** UPDATE SERIAL MONITOR AND LOG *****
   if (now_ms - SERIALt > SERIALwindow) {
-
  
 #ifdef HDEBUG
-    // Serial.print("heap_caps_get_free_size() = "); Serial.println(heap_caps_get_free_size());
-    // First pass: heap_caps_get_largest_free_block(MALLOC_CAP_32BIT) = 8257524
-    // 10 hours:   heap_caps_get_largest_free_block(MALLOC_CAP_32BIT) = 5898228
-    Serial.print("heap_caps_get_largest_free_block(MALLOC_CAP_32BIT) = "); Serial.println(heap_caps_get_largest_free_block(MALLOC_CAP_32BIT));
-    heap_caps_print_heap_info(MALLOC_CAP_32BIT);  Serial.println();
+
     if (now_ms > RESETwindow + RESETt) {
       Serial.printf("In reset, now = %ld, RESETt = %ld, RESETwindow = %ld .", now_ms, RESETt, RESETwindow);
       Serial.println("===== RESETTING WEB SERVER =====");

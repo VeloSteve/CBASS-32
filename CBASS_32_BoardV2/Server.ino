@@ -122,7 +122,7 @@ void defineWebCallbacks() {
       Serial.println(p_message);
     } else {
       AsyncWebParameter *p = request->getParam("magicWord");
-      Serial.printf("LogDownload got magicWord %s\n", p->value().c_str());
+      Serial.printf("LogRoll got magicWord %s\n", p->value().c_str());
 
       if ((p->value()).equals(MAGICWORD)) {
         rCode = 200;
@@ -443,13 +443,18 @@ void defineWebCallbacks() {
     Serial.println("In LogDownload call.");
     fileChunkPos = 0; // Start at byte zero - this should already be set.
 
-    request->sendChunked(
-      "text/plain",
-      [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
-        // Generate some data
-        // return logChunks((uint8_t *)buffer, maxLen);
-        return fileChunks((uint8_t *)buffer, maxLen, "/LOG.txt");
-      });
+    // The original sendChunked approach did not allow adding a header. Now we can set the desired .csv extension.
+    AsyncWebServerResponse *response = request->beginChunkedResponse("text/plain", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
+      //Write up to "maxLen" bytes into "buffer" and return the amount written.
+      //index equals the amount of bytes that have been already sent
+      //You will be asked for more data until 0 is returned
+      //Keep in mind that you can not delay or yield waiting for more data!
+      return fileChunks((uint8_t *)buffer, maxLen, "/LOG.txt");
+    });
+    response->addHeader("Server","ESP Async Web Server");
+    response->addHeader("Content-Disposition", "attachment; filename=\"LogDownload.csv\"");
+    request->send(response);
+
     pauseLogging(false);  // Normally set false in the last logChunks call, but verify.
   });
 

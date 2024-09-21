@@ -1,8 +1,6 @@
 #define NT 8 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.  With light control NT <= 5.
 #define RELAY_PAUSE 500 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
 
-#undef HDEBUG
-
 // The original CBASS from the Barshis lab uses Iceprobe chillers.
 // The Logan lab modifications use moving cold water, and adds light controls.
 // This definition had other purposes, but for not it only affects one offset value,

@@ -5,14 +5,17 @@
  * used when an existing file is lost or a clean start is desired. 
  */
 const char iniResetPage[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
 <html>
 <head>
 	<title>~TITLE~</title>
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" type="text/css" href="/page.css" />
 </head>
 <body>
-<div style="color:red;">~ERROR_MSG~</div>
+<div id="message" class="flex" style="color:red; height: fit-content;">~ERROR_MSG~</div>
+
 <div class="container">
 <div id="resetDiv"  class="wrapper fittwowide" >
 Normally you will make changes to an existing Settings.ini file by using the <a href="/RampPlan">Manage ramp plan</a> page.
@@ -299,10 +302,12 @@ function updatePlot() {
   newData = [];
   for (let t = 0; t < ~NT~; t++) {
     tname = "Tank " + (t+1);
-    oneTrace = {x:[], y:[], mode:'lines', name:tname};
+    oneTrace = {x:[], y:[], mode:'lines', name:tname, type: 'scatter'};
     for (let i = 1; i < table.rows.length; i++) {  // Start from 1 to skip header row
       // Just do one tank at a time even though it means multiple passes.
-      oneTrace.x[i-1] = table.rows[i].cells[0].innerText.trim();
+      // This adds an arbitrary date to the front of the time, because plotly
+	    // won't understand that this is a date-time value without it.
+      oneTrace.x[i-1] = '2024-01-01T' + table.rows[i].cells[0].innerText.trim();
       oneTrace.y[i-1] = parseFloat(table.rows[i].cells[t+1].innerText.trim());
 
     }
@@ -321,7 +326,7 @@ function updatePlot() {
   tHistory = Plotly.newPlot( ramp, newData, {
   margin: { t: 50 },
   title: 'Temperature Plan',
-  xaxis: {title: 'Time from Start'},
+  xaxis: {title: 'Time from Start', tickformat: '%H:%M},
   yaxis: {title: 'T, °C'}
   }, {modeBarButtonsToRemove: ['resetScale2d']} );
 

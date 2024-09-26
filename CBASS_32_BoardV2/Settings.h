@@ -1,4 +1,4 @@
-#define NT 8 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.  With light control NT <= 5.
+#define NT 4 // The number of tanks supported.  CBASS-32 supports up to 8, though 4 is standard.  With light control NT <= 5.
 #define RELAY_PAUSE 500 // Milliseconds to wait between some startup steps - standard is 5000, but a small number is handy when testing other things.
 
 // The original CBASS from the Barshis lab uses Iceprobe chillers.
@@ -54,45 +54,7 @@ const double TANK_TEMP_CORRECTION[] = {0, 0, 0, 0, 0, 0, 0, 0}; // Is a temperat
 // powered from the power bar, typically USB-powered pumps.
 #define SHIFT_PINS 16 // How many shift register pins to address.  Allows for future expansion.
 
-// All tanks are controlled by shift registers starting with CBASS-32 V2.0.
-// for up to 16 tanks.
-// Two shift registers are daisy-chained together.  The first is connected to the
-// incoming data line and to DB9_UP_1, so it controls the first 4 tanks.  The
-// second receives data as it shifts out of the first and is connected to DB9_DOWN_2,
-// controlling the remaining tanks and/or lights.
-// The incoming data is stored in an integer with the lowest SHIFT_PINS bits used to 
-// control the relays and the rest set to zero.
-// Bits are placed into the shift registers starting with the most significant bit first,
-// so for example if the value is 1100 0000 0000 0001 (spaces added for readabilty)
-// the last two pins (QG and QH) on the second register and the first pin (QA) on the second register will
-// be enabled.  By the way, those bits printed in base 10 will be 1 + 32,768 + 65,536 = 93,305.
-// The mapping is
-// reg-   reg  pin    net   DB9 controlled by
-// ister  pin  label        pin bit (0 = low, 15 = high)
-// 1      15    QA    CH_4  1    0
-// 1      1     QB    CH_2  3    1
-// 1      2     QC    CH_3  2    2
-// 1      3     QD    HT_1  6    3
-// 1      4     QE    HT_2  7    4
-// 1      5     QF    CH_1  4    5
-// 1      6     QG    HT_3  8    6
-// 1      7     QH    HT_4  9    7
-// 2      15    QA    HT_8  1    8
-// 2      1     QB    CH_8  3    9
-// 2      2     QC    HT_5  2   10
-// 2      3     QD    CH_7  6   11
-// 2      4     QE    HT_6  7   12
-// 2      5     QF    CH_6  4   13
-// 2      6     QG    HT_7  8   14
-// 2      7     QH    CH_5  9   15
-// Column names:
-// register = the shift register, 1 or 2  (labeled 1 and 0 on the board - oops)
-// reg pin = the pin number on the shift register chip.
-// pin label = the pin as labeled on the datasheet and schematic
-// net = the connection name on the schematic.  HT = heat, CH = chill, number = tank number
-// DB9 pin = the pin number on the DB9 connector
-// bit = the bit location in the control value  (shiftRegBits)
-//
+// Please see the documentation for why the bits are in this arbitrary-looking order.
 // Remember that DB9_UP_1 controls tanks 1-4, and is controlled by the lowest-value bits.
 const byte HeaterRelay[] = {3, 4, 6, 7, 10, 12, 14, 8}; 
 const byte ChillRelay[] = {5, 1, 2, 0, 15, 13, 11, 9};   

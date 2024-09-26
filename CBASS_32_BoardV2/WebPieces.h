@@ -26,6 +26,7 @@ const char linkList[] PROGMEM = R"rawliteral(
 <li><a href="/RampPlan">Manage ramp plan.</a></li>
 <li><a href="/SyncTime">Synchronize CBASS time to device.</a></li>
 <li><a href="/ResetRampPlan">Reset ramp plan to example values.</a></li>
+<li><a href="/LogManagementV2">NEW LOG MANAGEMENT.</a></li>
 <li><a href="/LogManagement">Manage the log file.</a></li>
 ~UPLOAD_LINK~
 <li><a href="/ResetSPI">Reset Display (SPI reset).</a></li>
@@ -38,6 +39,7 @@ setup and then after the experiment for obtaining the log file.
 )rawliteral";
 
 const char header[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
 <html><head><title>~TITLE~</title></head><body>
 )rawliteral";
 
@@ -45,6 +47,7 @@ const char header[] PROGMEM = R"rawliteral(
  * approach, but it's a test for more complex pages.
  */
 const char basePage[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
 <html><head><title>~TITLE~</title>
   <link rel="stylesheet" type="text/css" href="/page.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -59,6 +62,7 @@ Less wiring, more science!
  * credits, and whatever comes to mind.
  */
 const char aboutPage[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
 <html><head><title>~TITLE~</title>
   <link rel="stylesheet" type="text/css" href="/page.css" />
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -158,6 +162,7 @@ const char uploadHTML[] PROGMEM = R"rawliteral(
 #endif
 
 const char dirListHTML[] PROGMEM = R"rawliteral(
+  <!DOCTYPE html>
   <html><head><title>~TITLE~</title>
   <link rel="stylesheet" type="text/css" href="page.css" />  
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -168,6 +173,7 @@ const char dirListHTML[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 const char uploadSuccess[] PROGMEM = R"rawliteral(
+  <!DOCTYPE html>
   <html><head><title>~TITLE~</title>
   <link rel="stylesheet" type="text/css" href="page.css" />  
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -182,7 +188,8 @@ const char rollLogNow[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 const char rebootHTML[] PROGMEM = R"rawliteral(
-    <html><head><title>~TITLE~
+  <!DOCTYPE html>
+  <html><head><title>~TITLE~
   </title>
   <link rel="stylesheet" type="text/css" href="page.css" />  
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -199,7 +206,8 @@ const char rebootHTML[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 const char webResetSPI[] PROGMEM = R"rawliteral(
-    <html><head><title>~TITLE~
+  <!DOCTYPE html>
+  <html><head><title>~TITLE~
   </title>
   <link rel="stylesheet" type="text/css" href="page.css" />  
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -230,11 +238,68 @@ INTERP LINEAR
 7:00	30	30	30	30
 )rawliteral";
 
-const char logHTML2[] PROGMEM = R"rawliteral(
+
+
+const char logHTMLV2[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
 <head>
 	<title>~TITLE~</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="page.css" />
+</head>
+<body>
+<script>
+  function clearMessage() {
+    console.log("clearing old warning or success message");
+    let m = document.getElementById('message');
+    m.innerHTML = "";
+  }
+  console.log("Loaded JS");
+</script>
+
+<div class="container">
+<div id="message" class="flex" style="color:red; height: fit-content;">~ERROR_MSG~</div>
+
+<div class="wrapper flex fittwowide">
+<p>The file LOG.txt is an important output of CBASS experiments. 
+ It gives the most direct confirmation of the actual temperatures in the 
+ test areas, though there may alternate monitoring methods as well.
+ Because of this it must be <b>handled with care.</b></p>
+
+<p>You must enter the "Magic Word".  Note that it is not a secure password<br>
+
+<form>
+<label for=\"MagicWord\">Magic Word:</label>
+<input type="text" id="magicWord" name="magicWord"><br/>
+<input name="reset" type="hidden" value="true">
+<br>
+<!-- <button type="submit" formaction="/LogDownload" name="foo" value="bar">Download Current Log File</button> -->
+<!-- <button type="submit" formaction="/LogRoll" name="foo" value="bar">Archive and Start New Log</button> -->
+
+ <a id="dl" href="/LogDownload" download="LogDownload.csv"><button formaction="/LogDownload"  onclick="clearMessage()">Download Current Log</button></a>
+<button formaction="/LogRoll" type="submit" id="roll" href="/LogRoll" onclick="clearMessage()">Archive the log and start a new one.</button>
+
+</form>
+</div>
+
+
+
+~LINKLIST~
+</div></body></html>
+)rawliteral";
+
+
+
+
+
+const char logHTML[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+	<title>~TITLE~</title>
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" type="text/css" href="page.css" />
   <style>
@@ -253,7 +318,7 @@ const char logHTML2[] PROGMEM = R"rawliteral(
 </head>
 <body>
 <div class="container">
-<div id="message" style="color:red;">~RESET_WARNING~</div>
+<div id="message" class="flex" style="color:red;"></div>
 <div class="wrapper flex fittwowide">
 <p>The file LOG.txt is an important output of CBASS experiments. 
  It gives the most direct confirmation of the actual temperatures in the 
@@ -323,6 +388,7 @@ const char logHTML2[] PROGMEM = R"rawliteral(
 
 // A page for synchronizing CBASS-32 time to the current device.
 const char syncTime[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
 <html>
 <head>
 	<title>~TITLE~</title>
@@ -331,7 +397,7 @@ const char syncTime[] PROGMEM = R"rawliteral(
 </head>
 <body>
 <div class="container">
-<div id="message" style="color:red;">~RESET_WARNING~</div>
+<div id="message" style="color:red;"></div>
 <div class="wrapper flex fittwowide">
 <p>This page allows you to synchronize CBASS time and date to the current device.
 <p>CBASS does not know about time zones or "Daylight Saving".  You will

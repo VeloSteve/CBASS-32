@@ -103,7 +103,16 @@ void defineWebCallbacks() {
   server.on("/LogManagement", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Sending log management page.");
     p_title = "CBASS-32 Log Management";
-    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTML2, processor);
+    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTML, processor);
+    response->addHeader("Server", "ESP Async Web Server");
+    request->send(response);
+  });
+
+
+    server.on("/LogManagementV2", HTTP_GET, [](AsyncWebServerRequest *request) {
+    Serial.println("Sending log management page.");
+    p_title = "CBASS-32 Log Management";
+    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTMLV2, processor);
     response->addHeader("Server", "ESP Async Web Server");
     request->send(response);
   });
@@ -132,14 +141,19 @@ void defineWebCallbacks() {
       }
     }
     if (rCode != 200) {
-      AsyncWebServerResponse *response;
-      response = request->beginResponse(rCode, "text/html", p_message.c_str());
+      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTMLV2, processor);
+      response->addHeader("Server", "ESP Async Web Server");
       request->send(response);
       return;
     }
 
-
+    /* 24 Sep 2024 instead of sending a string to display, just reload
+    the page with a message in p_message
     AsyncWebServerResponse *response = request->beginResponse_P(200, "text/plain", rollLogNow, processor);
+    response->addHeader("Server", "ESP Async Web Server");
+    request->send(response); */
+    p_message = rollLog();
+    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTMLV2, processor);
     response->addHeader("Server", "ESP Async Web Server");
     request->send(response);
   });
@@ -415,7 +429,7 @@ void defineWebCallbacks() {
 //  Chunked response - my function will provide the chunks using the SdFat library.
   server.on("/LogDownload", HTTP_GET, [](AsyncWebServerRequest *request) {
     fileChunkPos = 0;  // Lets the function know to start at zero.
-
+    p_message = "";
 
     int rCode = 200;
     if (!request->hasParam("magicWord")) {
@@ -434,8 +448,9 @@ void defineWebCallbacks() {
       }
     }
     if (rCode != 200) {
-      AsyncWebServerResponse *response;
-      response = request->beginResponse(rCode, "text/html", p_message.c_str());
+      // Send the management page with the message set above.
+      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTMLV2, processor);
+      response->addHeader("Server", "ESP Async Web Server");
       request->send(response);
       return;
     }
@@ -669,6 +684,7 @@ String rollLog() {
 
   // Ensure that the next logging call will include a header.
   SerialOutCount = serialHeaderPeriod + 1;
+
   return result;
 }
 
@@ -866,9 +882,10 @@ void sendRampForm(AsyncResponseStream *rs) {
 
   Serial.println("Sending ramp plan management page.");
 
-  rs->println("<html>");
-  rs->println("<head><title>Ramp Plan</title>	<link rel=\"stylesheet\" type=\"text/css\" href=\"/page.css\" />");
-  rs->println(" <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"> </head>");
+  rs->println("<!DOCTYPE html><html>");
+  rs->println("<head><title>Ramp Plan</title>");
+  rs->println("<meta charset=\"utf-8\"><link rel=\"stylesheet\" type=\"text/css\" href=\"/page.css\" />");
+  rs->println("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"> </head>");
 
   //TODO - probably should move  most of this to a static file and
   //insert any values with a processor OR javascript after loading.
@@ -891,7 +908,7 @@ void sendRampForm(AsyncResponseStream *rs) {
     rs->print("</td>");
     for (j = 0; j < NT; j++) {
       rs->print("<td contenteditable=\"true\" class=\"temperature\" onblur=\"validateCellTemp(this)\">");
-      rs->print(((double)(rampHundredths[j][k]) / 100.0), 2);
+      rs->print(((double)(rampHundredths[j][k]) / 100.0), 1);
       rs->print("</td>");
     }
     //  Here we add icons to add or remove rows.  Don't allow the first to be deleted, and keep at least 2.
@@ -903,9 +920,8 @@ void sendRampForm(AsyncResponseStream *rs) {
     rs->println("</tr>");
   }
 
-  rs->println("</table>");
-  rs->println("<button id=\"sendbutton\" onclick=\"submitRampData()\" disabled>Update Data</button></div>");
-  rs->print("<div id=\"rgraph\" class=\"wrapper flex\"></div>");
+  rs->println("</table></div>");
+  rs->print("<div id=\"rgraph\" class=\"wrapper flex fittwowide\"></div>");
 
   // This supports table operations and sends data to the server when the button is pushed.
   // Add a graph!
@@ -916,24 +932,26 @@ void sendRampForm(AsyncResponseStream *rs) {
 
 
   // Add the start time and magic word area.
-  rs->println("<div class=\"wrapper flex\" id=\"tableextras\">");
+  rs->println("<div class=\"wrapper flex fittwowide\" id=\"tableextras\">");
     // Show the start time, if specified.
   if (relativeStart) {
     int hr = (int)(relativeStartTime / 60);
     int min = relativeStartTime - hr * 60;
-    rs->printf("The current ramp start time is <input type=\"text\" id=\"StartTime\" name=\"StartTime\" value=\"%d:", hr);
+    rs->printf("The current ramp start time is <div><input type=\"text\" id=\"StartTime\" name=\"StartTime\" value=\"%d:", hr);
     if (min < 10) {
       rs->print("0");
       //if (min < 1) rs->print("0");
     }
 
-    rs->printf("%d\"> in 24 hour time.<br><br>\n", min);
-    rs->print("<b>WARNING: changes will apply immediately, interrupting any ramp in progress.</b><br>");
+    rs->printf("%d\"> in 24 hour time.</div>\n", min);
+    rs->print("<b>WARNING: changes will apply immediately, interrupting any ramp in progress.</b>");
     rs->print("Enter times in HH:MM or H:MM format only.  Seconds are not supported.<br>");
 
-    rs->print("The \"Magic Word\" is not a secure password.  It is there to make you think twice.<br>");
+    rs->print("The \"Magic Word\" is not a secure password.  It is there to make you think twice.");
     rs->println("<label for=\"MagicWord\">Magic Word:</label>");
-    rs->println("<input type=\"text\" id=\"MagicWord\" name=\"MagicWord\" onblur=\"changedMagic(this)\"></div>");
+    rs->println("<div><input type=\"text\" id=\"MagicWord\" name=\"MagicWord\" onblur=\"changedMagic(this)\">");
+
+    rs->println("<button id=\"sendbutton\" onclick=\"submitRampData()\" disabled>Update Data</button></div></div>");
 
     //rs->println("<input type=\"submit\" value=\"Change Start time\"><br><br>");
 
@@ -942,7 +960,7 @@ void sendRampForm(AsyncResponseStream *rs) {
   }
 
   rs->println(manualProcess(linkList));
-  rs->println("</body></html>");
+  rs->println("</div></body></html>");
 }
 
 // Send minutes as hh:mm, e.g. 605 becomes 10:05
@@ -1208,8 +1226,11 @@ String processor(const String &var) {
     // Since nt is static, this only has to run once.
     sprintf(nt, "%d", NT);
   }
-  if (var == "ERROR_MSG") return p_message;
-  else if (var == "TITLE") {
+  if (var == "ERROR_MSG") {
+    String m = p_message;
+    p_message = ""; // Don't let it carry over to later
+    return m;
+  } else if (var == "TITLE") {
     if (p_title.isEmpty()) return String("CBASS-32");
     else return p_title;
   } else if (var == "LINKLIST") return linkList;
@@ -1231,7 +1252,7 @@ String processor(const String &var) {
 
 /**
  * A kludge due to the fact that in the RampPlan page the response is computed on the fly
- * rather than contained in a string.  This means that there is no build-in way to run the
+ * rather than contained in a string.  This means that there is no built-in way to run the
  * text processors to replace placeholders.  This takes the list of links and replaces
  * ~UPLOAD_LINK~ appropriately.
  * An alternative would be to put the whole computation of the page inside the processor(), but

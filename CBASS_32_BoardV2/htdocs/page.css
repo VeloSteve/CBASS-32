@@ -38,10 +38,9 @@ html {
 }
 
 .wrapper > div {
-  background-color: rgb(89,161,175);
+  /* background-color: rgb(89,161,175); */
   border-radius: 5px;
   padding: 10px;
-  color: #fff;
   font-weight: bold;
 }
 
@@ -79,13 +78,13 @@ html {
 	width: 100%;
 }
 
-#tablediv, #tableextras {
-	width: 450;
+#tablediv {
+	width: fit-content;
 }
 
 #rgraph {
-	width: 400px;
-	height: 300px;
+	width: 500px;
+	height: 500px;
 }
 
 th, td {

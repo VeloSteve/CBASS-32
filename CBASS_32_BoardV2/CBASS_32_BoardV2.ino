@@ -3,58 +3,17 @@ WARNING: do not upgrade the Arduino ESP32 board definition past 2.0.13.
     The OneWire library 2.3.8 is no longer compatible and temperature monitoring will fail.
     This may change when a newer OneWire is release, but be prepared to test.  Some recommend OneWireNg 
     as a replacement, but this has not yet been tested with CBASS-32.
-
-Test notes 6 Sep 2024
-Started a V0.2 and V 2.0 board at about 7:35 AM.
-Both have a display, SD card, and sensors attached.
-Both ran well for a couple of hours so I added stress with a Python program which
-requests one of 7 web pages from both CBASS boards, waits 1 second and repeats.
-By 5:34 PM both show their original start time and the displays are normal.
-There have been over 24,100 web requests to each board.
-
-9:30 PM - still running from 7:35 AM.  Python died at 34,635 requests "ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host"
-perhaps because desktop was asleep.  Restarting serial monitors restored data flows.
-Restarting Python code worked smoothly.
-
-11:43 PM NEW system rebooted after being asked for a directory listing.  Picked up okay after that (????)
-NOTE that this was the same time the WiFi requests died on both systems.  
-
-D2 7:03 AM still running.  Apparent failure count Old 0, New 1.
-
-Restarting Python at 250 ms pause between requests (was 1000).
-NOTE that serial was not running during these AM checks, and there may have been other issues.  After starting
-Python file requests on the old system look garbled, new is good! e.g. :
-howing SD files...In sendFileInfo.
-  FILE: TEST.(��	SIZE: 2097152
-  FILE: ���@@@@@.���	SIZE: 26
-  FILE: �������@.���	SIZE: 44
-Restart is unsuccessful on old system - formatting with Tuxera formatter in overwrite mode.
-
-Failure count: Old 1 case of SD corruption, New 1 reboot
-
-D2 9:44 AM - restarted Old with files replaced on reformatted card
-D2 9:45 AM - restarted Python stress generator
-D2 11:34 AM - both running nicely
-
-Next:
-1) Wait overnight.
-1.5) Figure out why top line of TFT occasionally redraws.  (This may be the tftPauseWarning)
-2) Try with relay outputs attached to power bars.
-3) Try in access point (rather than station) mode.
-4) Try with a 1.0 board.
-*/
-
+ */
 /********************************************************
    CBASS Control Software
    This software uses a PID controller to switch heating and
    cooling devices.  These control the water temperature in
    small aquaria used for thermal tolerance experiments on coral.
 
-   We use "time proportioning
-   control"  Tt's essentially a really slow version of PWM.
-   First we decide on a window size (5000mS say.) We then
-   set the pid to adjust its controlOutput between 0 and that window
-   size.  Lastly, we add some logic that translates the PID
+   We use "time proportioning control"  Tt's essentially a really
+   slow version of PWM. First we decide on a window size (5000mS say.)
+   We then set the pid to adjust its controlOutput between 0 and
+   that window size.  Lastly, we add some logic that translates the PID
    controlOutput into "Relay On Time" with the remainder of the
    window being "Relay Off Time".
 
@@ -65,39 +24,27 @@ Next:
    The only real drawback is that it has fewer I/O pins, so some work
    is needed to control the relay outputs.
 
-   September 2024 saw the first copies of board version 2.0.  The primary
-   goal is to separate the SPI channels used by the microSD card and by the 
-   display.  Both have had some reliability issues, and this may solve them.
-   If not, it at least allows the issues to be diagnosted separately.  There
-   are two main changes to the board and a few other things to note.
-    1) The microSD card uses the same SPI channel (VSPI) on pins D11, D12, and D13 while
-       the display uses the HSPI port assigned to pins D3 and D2 (there is no return data
-       from the display).
+   September 2024 saw the first copies of board version 2.0.  This version
+   uses separate SPI channels for the microSD card and the display.  While
+   SPI is designed to me shared by multiple devices, this does not seem to
+   be properly supported by the current libraries when run on a multi-threaded
+   processor.  Both the display and microSD card had reliability issues, which
+   now seem to be solved.  The changes were
+    1) The microSD card uses the original SPI channel (VSPI) on pins D11, D12,
+       and D13 while the display uses the HSPI port assigned to pins D3 and D2
+       (there is no return data from the display).
     2) To free up pins for item one there are now two shift registers, daisy-
        chained.  This allows up to 16 relays to be controlled with just 3
        digital pins.
-    3) There are now "test points" for ground, +3.3 Volts and input voltage at the
-       radio end of the board.
+    3) There are now "test points" for ground, +3.3 Volts and input voltage at
+       the radio end of the board.
     4) Many Arduino pins have been reassigned, so the "_BoardV2" version of the
-       software will need to reflect that through updates to Settings.h.
-    3) Development is now done on free, open-source KiCad software, instead of
+       software reflects that through updates to Settings.h.
+    3) Printed circuit board development is now done on free, open-source KiCad
+       software, instead of
        Eagle, which is no longer supported.
   Note that the connectors and their locations have not changed, so building a
   CBASS-32 system is  unaffected.
-
-   TODO: (remove this when done)
-   - Modify code to use the dual shift registers.
-   - Modify code to use separate SPI channels.
-   - Verify that the display and relays (all 16 outputs) work as expected
-   - Ensure that WiFi and primary operations can not interfere with
-     each other, for example by both attempting to access the SD card
-     at the same time.
-   - Stress test, for example hold all 16 relays in the ON state at
-     once on two actual power bars.  At the same time server temperature
-     graphs to a couple of devices while accepting control commands
-     from a third.
-   - web: display current settings file on screen
-   - Time sync should re-read or shift settings information so set  points are correct.
 
    This software, including the other files in the same directory
    are subject to copyright as described in LICENSE.txt in this
@@ -106,37 +53,26 @@ Next:
    Other imported libraries may be subject to their own terms.
 
    The software is hosted at https://github.com/VeloSteve/CBASS-32
+   The V2 version is here: https://github.com/VeloSteve/CBASS-32/tree/main/CBASS_32_BoardV2
  ********************************************************/
-// C++ standard library so we can have a vector of PIDs
-#include <vector>
-
-// SD card library (do NOT use SD.h!)
-#include <SdFat.h>
-// Adafruit TFT LCD Display
-#include <Adafruit_ILI9341.h>
-// PID Library
-#include <PID_v1.h>
-//#include <PID_AutoTune_v0.h>
-
-// Libraries for the DS18B20 Temperature Sensor
-#include <OneWire.h>
+// C++ standard library
+#include <vector>               // Supports having vector of PIDs and another of data points.
+// Third-party libraries
+#include <SdFat.h>              // SD card library (do NOT use SD.h!)
+#include <Adafruit_ILI9341.h>   // Adafruit TFT LCD Display
+#include <PID_v1.h>             // PID Library
+#include <OneWire.h>            // Libraries for the DS18B20 Temperature Sensor
 #include <DallasTemperature.h>
-// Real time clock
-#include <RTClib.h>
-// SPIFFS internal file system on ESP32
-#include "SPIFFS.h"
+#include <RTClib.h>             // Real time clock
+#include "SPIFFS.h"             // SPIFFS internal file system on ESP32
 #define FORMAT_SPIFFS_IF_FAILED true
+#include <esp_task_wdt.h>       // Watchdog timer so a hung system will restart, possible preventing a fire in extreme cases!
+#define WDT_TIMEOUT 28          // How long to wait before rebooting in case of trouble (seconds).
+#include <ESPAsyncWebSrv.h>     // Web server
 
-// CBASS settings and constants.
-#include "Settings.h"
-
-// Web server
-#include <ESPAsyncWebSrv.h>
-#include "WebPieces.h"
-
-// Add a watchdog timer so the system restarts if it somehow hangs.  This could prevent a fire in extreme cases!
-#include <esp_task_wdt.h>
-#define WDT_TIMEOUT 28  // How long to wait before rebooting in case of trouble (seconds).
+// CBASS included files
+#include "Settings.h"     // CBASS settings and constants.
+#include "WebPieces.h"    // Chunks of text for use in web pages
 
 /* Arduino IDE auto-generates function prototypes, but often fails!  When the
    compiler says something like
@@ -194,8 +130,7 @@ SPIClass SPI2(HSPI);
 // (your path)\Arduino\libraries\Adafruit_ILI9341\Adafruit_ILI9341.cpp
 Adafruit_ILI9341 tft = Adafruit_ILI9341(&SPI2, TFT_DC, TFT_CS, -1);
 
-
-// The Real Time Clock is now DS3231, if there is trouble with older hardware, try RTC_DS1307.
+// The Real Time Clock is now a DS3231.
 RTC_DS3231  rtc;
 DateTime  t;
 
@@ -204,11 +139,10 @@ File32 logFile;
 boolean logPaused = false;
 unsigned long startPause = 0;
 
-
-// Storage for the characters of keyword while reading Settings.ini.
+// Storage for the characters of keywords while reading Settings.ini.
 // Now expanded from 16 bytes to 128 so it can be used for longer 
 // messages in other places.
-const byte BUFMAX = 128; // INTERP is the longest keyword for now.
+const byte BUFMAX = 128; // LIGHTOFF is the longest keyword for now.
 char iniBuffer[BUFMAX];
 
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
@@ -244,9 +178,8 @@ unsigned int i;  // General use
 const int TPCwindow=10000;
 
 // Time Windows: Update LCD 2/sec; Serial (logging) 1/sec, Ramp Status 1/sec
-const unsigned int LCDwindow = 1000;
-const unsigned int SERIALwindow = 5000;  // Default 1000; how often to log.
-unsigned int GRAPHwindow = 5000;  // 5000 (5 seconds) gives good graph resolution.  More points waste memory and bandwidth.
+const unsigned int LCDwindow = 500;     // Default 500; ms between screen updates
+const unsigned int SERIALwindow = 5000;  // Default 1000; ms between log lines
 
 const unsigned int serialHeaderPeriod = 10000; // Print header after this many lines.  Not useful for automated use.
 unsigned int SerialOutCount = serialHeaderPeriod + 1;  // Print at the top of any new log.
@@ -264,10 +197,23 @@ char RelayStateStr[NT][4]; // [number of entries][characters + null terminator]
 // A vector of PID Controllers which will be instantiated in setup().
 std::vector<PID> pids;
 // A vector of DataPoints for graphing.
-const int maxGraphPoints = (int)6*3600/((float)GRAPHwindow/1000); // Allow up to 6 hours of points!
+// Selection of graphHours:
+// Each additional hour of data takes up to 131,072 B of memory, with a 
+// long-term average of about 104 kB.
+//
+// 6 hours is a reasonable compromise for fast loading of the graphs on an external device.
+// 12 hours or 24 hours should be safe.  Up to 72 hours can be loaded, but this leaves minimal
+// extra memory on the system and could be unstable.
+// This is based on NT = 8 and GRAPHwindow = 5000.  Memory use should decease linearly with increasing
+// GRAPHwindow.  Use drops less than linearly with decreasing NT since timestamps consume 
+// constant memory per point.
+// Your primary science data should still be based on the log files.  Live graph data does not survive reboots.
+const int GRAPHwindow = 5000;  // 5000 (5 seconds) gives good graph resolution without excessive resource use.
+const float graphHours = 12;               // Hours of data to store.
+const int maxGraphPoints = (int)(graphHours*3600/((float)GRAPHwindow/1000)); 
 std::vector<DataPoint> graphPoints;
 
-// Formerly "printDate" No spaces or commas.  Otherwise just something that gets logged.
+// Formerly "printDate". No spaces or commas.  This becomes the first item on each log line.
 String logLabel = "CBASS-32";
 
 //TimeKeepers
@@ -279,7 +225,6 @@ String bootTime;
 /////////////////////////////////////////////
 void setup()
 {
-
   for (i=0; i<NT; i++) {
     // Instantiate a PID on each pass, using the given arguments.  Append it to the vector
     pids.emplace_back(PID(&tempInput[i], &controlOutput[i], &setPoint[i], KP, KI, KD, DIRECT));
@@ -289,7 +234,7 @@ void setup()
   // memory later.  In one case this prevented the sketch from loading, so try commenting this if there is a problem.
   graphPoints.reserve(maxGraphPoints);
 
-  // Start "reset if hung" watchdog timer. 8 seconds is the longest available interval.
+  // Start "reset if hung" watchdog timer.
   esp_task_wdt_init(WDT_TIMEOUT, true);
   esp_task_wdt_add(NULL);
 
@@ -365,19 +310,18 @@ void setup()
   SERIALt = millis() - SERIALwindow;
   LCDt = millis() - LCDwindow;
   GRAPHt = millis() - GRAPHwindow;
+
+  Serial.println("Heap info at end of setup:");
+  Serial.print("heap_caps_get_largest_free_block(MALLOC_CAP_32BIT) = "); Serial.print(heap_caps_get_largest_free_block(MALLOC_CAP_32BIT));
+  Serial.printf(" maxGraphPoints = %d\n", maxGraphPoints);
 }
 
 /**
- * This loop checks temperatures and updates the heater and chiller states.  As of 21 Apr 2022 it takes about
- * 1055 ms for the quickest loops.  When timed activities such as getting new temperature targets
- * and printing the new values trigger, this rises to about 1235 ms.
- * On this same date, the default triggers are 60000 ms for temperature target updates, 1000 ms for serial logging,
- * and 500 ms for LCD display updates.  When the latter two are smaller than the actual loop time, they simply
- * run every time.
- * With the ESP32 processor the fast loops take only about 7 ms!  With temperature checks 294 ms and with logging, 304 ms.
+ * This loop checks temperatures and updates the heater and chiller states.  
+ * With the ESP32 processor the fastest loops take only about 7 ms!  With temperature checks 294 ms and with logging, 304 ms.
  *
- * This loop time is effective for thermal control.  Changes to the code which increase the loop time much beyond
- * one second should be followed by physical testing of temperature histories.
+ * Loop times of around one second are known to be  effective for thermal control.  Changes to the code
+ * which increase the loop time much beyond that should be followed by physical testing of temperature histories.
  */
 /////////////////////////////////////////////
 //     LOOP                                //
@@ -397,16 +341,12 @@ void loop()
   applyTargets();
   //ShowRampInfo(); // To display on serial monitor.
 
-
-
+  // **** STORE DATA FOR GRAPHING ON OTHER DEVICES *****
   if (now_ms - GRAPHt > GRAPHwindow) {
     if (graphPoints.size() >= maxGraphPoints) graphPoints.erase(graphPoints.begin());
     graphPoints.emplace_back(now_ms, t, setPoint, tempT);
-    //Serial.printf("graphPoints size is now %d elements. Est. total bytes = %d Stack high water = %d.\n", 
-    //    graphPoints.size(), graphPoints.size()*sizeof(DataPoint) + sizeof(graphPoints), uxTaskGetStackHighWaterMark( NULL ));
     GRAPHt += GRAPHwindow;
   }
-
 
   // ***** UPDATE PIDs *****
   for (i=0; i<NT; i++) pids[i].Compute();
@@ -428,7 +368,6 @@ void loop()
       tftPauseWarning(true);
     }
   }
-
 
   //***** UPDATE LCD *****
   if (now_ms - LCDt > LCDwindow)

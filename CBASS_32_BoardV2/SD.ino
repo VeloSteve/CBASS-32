@@ -114,6 +114,7 @@ void readRampPlan() {
     }
     fatalError(F("---ERROR--- No ramp plan file (/Settings.ini)!"));
   }
+  rampSteps = 0;  // Otherwise we may append to a previous plan!
   settingsFile = SDF.open("/Settings.ini", O_RDONLY);
   while (settingsFile.available()) {
     nRead = settingsFile.readBytesUntil('\n', lineBuffer, maxLine);  // One line is now in the buffer.
@@ -605,6 +606,7 @@ bool resetSettings() {
       Serial.println("Could not remove old Settings.ini.  Is it write protected?");
       return false;
     }
+    Serial.println("Removed old Settings.ini");
   }
   // Old Settings.ini is gone.  Write a new one.
   File32 f = SDF.open("/Settings.ini", O_WRONLY | O_CREAT);
@@ -612,6 +614,7 @@ bool resetSettings() {
     Serial.println("Could not open a new Settings.ini. Remove and repair the SD card.");
     return false;
   } else {
+    Serial.println("Writing new Settings.ini with example values.");
     // f.print(defaultINI);
     f.print("// A typical ramp preceeded by some tests\n// Start time (1 PM in this example)\n");
     f.print("START 13:00\n// LINEAR is the default, so this is just a reminder.\nINTERP LINEAR\n");

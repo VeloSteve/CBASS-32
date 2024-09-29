@@ -108,15 +108,6 @@ void defineWebCallbacks() {
     request->send(response);
   });
 
-
-    server.on("/LogManagementV2", HTTP_GET, [](AsyncWebServerRequest *request) {
-    Serial.println("Sending log management page.");
-    p_title = "CBASS-32 Log Management";
-    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTMLV2, processor);
-    response->addHeader("Server", "ESP Async Web Server");
-    request->send(response);
-  });
-
   // Roll over the log and let the user know the results.
 
   server.on("/LogRoll", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -141,7 +132,7 @@ void defineWebCallbacks() {
       }
     }
     if (rCode != 200) {
-      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTMLV2, processor);
+      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTML, processor);
       response->addHeader("Server", "ESP Async Web Server");
       request->send(response);
       return;
@@ -153,7 +144,7 @@ void defineWebCallbacks() {
     response->addHeader("Server", "ESP Async Web Server");
     request->send(response); */
     p_message = rollLog();
-    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTMLV2, processor);
+    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTML, processor);
     response->addHeader("Server", "ESP Async Web Server");
     request->send(response);
   });
@@ -449,7 +440,7 @@ void defineWebCallbacks() {
     }
     if (rCode != 200) {
       // Send the management page with the message set above.
-      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTMLV2, processor);
+      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTML, processor);
       response->addHeader("Server", "ESP Async Web Server");
       request->send(response);
       return;

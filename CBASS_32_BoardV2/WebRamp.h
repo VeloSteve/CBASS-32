@@ -326,7 +326,7 @@ function updatePlot() {
   tHistory = Plotly.newPlot( ramp, newData, {
   margin: { t: 50 },
   title: 'Temperature Plan',
-  xaxis: {title: 'Time from Start', tickformat: '%H:%M},
+  xaxis: {title: 'Time from Start', tickformat: '%H:%M'},
   yaxis: {title: 'T, °C'}
   }, {modeBarButtonsToRemove: ['resetScale2d']} );
 

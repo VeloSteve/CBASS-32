@@ -26,7 +26,6 @@ const char linkList[] PROGMEM = R"rawliteral(
 <li><a href="/RampPlan">Manage ramp plan.</a></li>
 <li><a href="/SyncTime">Synchronize CBASS time to device.</a></li>
 <li><a href="/ResetRampPlan">Reset ramp plan to example values.</a></li>
-<li><a href="/LogManagementV2">NEW LOG MANAGEMENT.</a></li>
 <li><a href="/LogManagement">Manage the log file.</a></li>
 ~UPLOAD_LINK~
 <li><a href="/ResetSPI">Reset Display (SPI reset).</a></li>
@@ -240,7 +239,7 @@ INTERP LINEAR
 
 
 
-const char logHTMLV2[] PROGMEM = R"rawliteral(
+const char logHTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
 <head>
@@ -284,106 +283,9 @@ const char logHTMLV2[] PROGMEM = R"rawliteral(
 </form>
 </div>
 
-
-
 ~LINKLIST~
 </div></body></html>
 )rawliteral";
-
-
-
-
-
-const char logHTML[] PROGMEM = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-	<title>~TITLE~</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" type="text/css" href="page.css" />
-  <style>
-    button {
-      background: none!important;
-      border: none;
-      padding: 0!important;
-      /*optional*/
-      font-family: arial, sans-serif;
-      /*input has OS specific font-family*/
-      color: #00E;
-      text-decoration: underline;
-      cursor: pointer;
-    }
-  </style>
-</head>
-<body>
-<div class="container">
-<div id="message" class="flex" style="color:red;"></div>
-<div class="wrapper flex fittwowide">
-<p>The file LOG.txt is an important output of CBASS experiments. 
- It gives the most direct confirmation of the actual temperatures in the 
- test areas, though there may alternate monitoring methods as well.
- Because of this it must be <b>handled with care.</b></p>
-
-
-<p>You must enter the "Magic Word".  Note that it is not a secure password<br>
-
-<label >Magic Word:
-<input type="text" id="magicWord" onchange="addMagic()" name="magicWord"></label><br/>
-
-<ol>
- <li><a id="dl" href="/LogDownload" download>Download the current log file.</a> without changing the file.</li>
- <li><form><button type="submit" id="roll" href="/LogRoll">Archive the log and start a new one.</button></form></li>
-</ol>
-</div>
-<script>
-  function addMagic() {
-    console.log("adding magic");
-    let url = new URL(window.location.origin + "/LogDownload");
-    let vvv = document.getElementById('magicWord').value;
-    url.searchParams.set("magicWord", vvv);
-    console.log(url.href);
-    let lll = document.getElementById("dl");
-    lll.href = url.href;
-  }
-
-  const form = document.querySelector('form');
-  form.addEventListener('submit', async (e) => {
-    console.log("roll link clicked");
-    e.preventDefault();
-
-    //for (const pair of formData.entries()) {
-    //  console.log(pair);
-    //}
- 
-    mmm = document.getElementById('magicWord').value;
-    const searchParams = new URLSearchParams();
-    searchParams.append("magicWord", mmm)
-    let response = await fetch ("/LogRoll/?" + searchParams.toString());
-    const msg = await response.text();
-    console.log("Message is " + msg);
-    console.log("response is");
-    console.log(response);
-    console.log("with status");
-    console.log(response.status);
-
-    const messageArea = document.getElementById('message');
-    if (response.status == 200) {
-      messageArea.innerHTML = "<b>Log roll action successful.</b> to " + msg; 
-      messageArea.style.color = 'blue';
-    } else {
-      messageArea.innerHTML = "ERROR " + response.status + " " + msg;
-      messageArea.style.color = 'red';
-    }
-
-  });
-
-
-</script>
-~LINKLIST~
-</div></body></html>
-)rawliteral";
-
 
 
 // A page for synchronizing CBASS-32 time to the current device.
@@ -461,7 +363,9 @@ need to reset the clock from here if you want to match those changes.
 /* 
  * The temperature monitoring page HTML and Javascript.
  */
-const char plotlyHTML[] PROGMEM = R"rawliteral(<html>
+const char plotlyHTML[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html>
 <head>
 	<title>~TITLE~</title>
 	<script src="plotly.js" charset="utf-8"></script>

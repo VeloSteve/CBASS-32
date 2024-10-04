@@ -1,5 +1,3 @@
-
-
 IPAddress connectAsAccessPoint() {
   // JSR: specify the AP's IP
   IPAddress gateway_ip = IPAddress(192, 168, 111, 22);  // Not sure what this is!

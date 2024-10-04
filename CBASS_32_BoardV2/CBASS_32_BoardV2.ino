@@ -77,45 +77,13 @@ WARNING: do not upgrade the Arduino ESP32 board definition past 2.0.13.
 /* Arduino IDE auto-generates function prototypes, but often fails!  When the
    compiler says something like
       "error: 'startDisplay' was not declared in this scope"
-  put the prototype here.  Typically it is just the first line of the function
+  put the prototype in Definitions.ini
+  You can preemptively do this for any new function used.
+  here.  Typically it is just the first line of the function
   definition with " {" replaced by ";".
   To be safe, put every function used in this file into this list.
  */
-void startDisplay();
-void SDinit();
-void clockInit();
-void checkTime();
-void RelaysInit();
-IPAddress connectWiFi();
-void readRampPlan();
-void rampOffsets();
-void getCurrentTargets();
-void PIDinit();
-void applyTargets();
-void ShowRampInfo();
-void sensorsInit();
-String gettime();
-void relayTest();
-void getTemperatures();
-void updateRelays();
-void SerialReceive();
-void SerialSend();
-void displayTemperatureStatusBold();
-void printLogHeader();
-void printBoth(const char *str);
-void printBoth(unsigned int d);
-void printBoth(int d);
-void printBoth(double d, int places);
-void printlnBoth();
-String getdate();
-void fatalError(const __FlashStringHelper *msg);
-void nonfatalError(const __FlashStringHelper *msg);
-void defineWebCallbacks();
-void checkSD(char* txt);
-void setupMessages();
-void pauseLogging(boolean a);
-String dataPointToJSON(DataPoint p);
-void dataPointPrint(DataPoint p);
+#include "Definitions.h"  // Prototypes and some class and constant definitions.
 
 // ===== Global variables are defined below. =====
 const int port = 80;

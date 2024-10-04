@@ -1,7 +1,6 @@
 const char monthsOfTheYear[12][4] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
-
 // Get the current date as a printable string
 String getdate() {
   return getdate(rtc.now());

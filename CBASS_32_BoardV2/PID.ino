@@ -1,5 +1,3 @@
-
-
 void applyTargets() {
   // Copy temperatures - it is not clear why we have both.  It may keep the PID values from
   // unwanted adjustments while the RAMP_START_TEMP values are being updated and adjusted.

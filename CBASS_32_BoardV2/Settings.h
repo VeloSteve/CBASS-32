@@ -55,43 +55,14 @@ const double TANK_TEMP_CORRECTION[] = {0, 0, 0, 0, 0, 0, 0, 0}; // Is a temperat
 #define SHIFT_PINS 16 // How many shift register pins to address.  Allows for future expansion.
 
 // Please see the documentation for why the bits are in this arbitrary-looking order.
-// Remember that DB9_UP_1 controls tanks 1-4, and is controlled by the lowest-value bits.
+// Remember that DB9_UP_1 controls tanks 1-4, and is controlled by the lowest-value bits
+// of shiftRegBits.
 const byte HeaterRelay[] = {3, 4, 6, 7, 10, 12, 14, 8}; 
 const byte ChillRelay[] = {5, 1, 2, 0, 15, 13, 11, 9};   
 // Lights are also controlled by the shift register, using some of the same bits.  This means that
 // systems with lights may use no more than 5 tanks, since 16 switched outlets are available.  Lights
 // will be controlled by the bits "left over" beyond tank 5.
 const byte LightRelay[] = {12, 14, 8, 13, 11, 9};
-
-// Example bit values with all heaters on:
-// 0001101110101010
-// numbers 1, 3, 5, 7, 8, 9, 11, 12 from right (0 based) - matches array above, but wrong relays are on!
-// 0001101110101010
-// 0000111101100011
-//     HHHH-HH---HH
-//     8743-21---65 expected
-// H8, C8 are lit on 2nd bar.
-// Just record what lights up
-/*
-1  c4
-2  c2
-4  c3
-8  h1
-16  h2
-32  c1  
-64  h3
-128 h4
-256 h8
-512 c8
-1024 h5
-2048 c7
-4096 h6
-8192 c6
-16384 h7
-32768 c5
-
-What about H7 and C5? or Bits 0 and 1?
- */
 
 // The shift registers are controlled by these pins
 #define LATCH_PIN D8    // RCLK
@@ -107,7 +78,6 @@ What about H7 and C5? or Bits 0 and 1?
 
 // SD card.  Note that there is a second SD card on the back of the display, which we don't currently use.
 // This is for the active one.
-// unconnected #define SD_DETECT  10
 #define SD_CS  D6
 // SdFat has more options than SD.h.  This gives a reasonable set of defaults.
 #define SD_FAT_TYPE 1             // 1 implies FAT16/FAT32
@@ -131,21 +101,7 @@ SdFat32 SDF;  // Example files use lower-case sd, but this fits old CBASS code.
 #define LINEHEIGHT3 28 // Pixel height of size 3 text is ??.  Add 1 or more for legibility.
 // From GFX docs: "Desired text size. 1 is default 6x8, 2 is 12x16, 3 is 18x24, etc"
 
-// Colors are RGB, but 16 bits, not 24, allocated as 5, 6, and 5 bits for the 3 channels.
-// For example, a light blue could be 0x1F1FFF in RGB, but 0x1F3A in 16-bit form. To convert
-// typical RBG given as a,b,c, use 2048*a*31/255 + 32*b*63/255 + c*31/255
-#define DARKGREEN 0x05ED  // Normal green is too pale on white. 
-#define DARKERGREEN 0x03F4  // Normal green is too pale on white. 
-#define LIGHTBLUE 0x1F3A  // Normal blue is too dark on black.
-// Easier names for some of the colors in the ILI9341 header file.
-#define BLACK   ILI9341_BLACK
-#define BLUE    ILI9341_BLUE
-#define RED     ILI9341_RED
-#define GREEN   ILI9341_GREEN
-#define CYAN    ILI9341_CYAN
-#define MAGENTA ILI9341_MAGENTA
-#define YELLOW  ILI9341_YELLOW
-#define WHITE   ILI9341_WHITE
+
 
 // Temperature sensor addresses.  If we know how they are joined into sets
 // of 4 we can assign them to tanks in groups.  We do not expect the addresses
@@ -153,6 +109,10 @@ SdFat32 SDF;  // Example files use lower-case sd, but this fits old CBASS code.
 // order.
 // This array can grow to hold the addresses of every sensor set you have access to.
 // The sketch uses it as a reference for grouping sensors at run time.
+//
+// The sketch will print the addresses of any unrecogized sensors in the format
+// needed below for easy cut-and-paste updates.
+//
 // Array size is [number of supported sensor sets][maximum tanks per set][bytes per address]
 const int knownAddressSets = 2;
 char addressSets[knownAddressSets][4][8] = {
@@ -170,22 +130,4 @@ char addressSets[knownAddressSets][4][8] = {
   }
 };
 
-// Store collected time and temperature information together.
-// old style as sent to Tchart.html:
-// {"NT":[4],"timeval":[54492],"CBASStod":["7:37:39"],"tempList":[19.8,20.1,19.8,20.6],"targetList":[24.0,24.0,24.0,24.0]}
-struct DataPoint
-{
-  long unsigned int timestamp;
-  DateTime time; 
-  double target[NT];
-  double actual[NT];
-    // A constructor so this can be built automatically be emplace_back
-  DataPoint(long unsigned int t, DateTime dt, double tar[NT], double act[NT]) {
-    timestamp = t;
-    time = dt;
-    //target = tar;
-    memcpy(&target, &tar[0], NT*sizeof(double));
-    memcpy(&actual, &act[0], NT*sizeof(double));
-  } 
-};
 

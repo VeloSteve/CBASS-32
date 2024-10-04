@@ -1,4 +1,3 @@
-
 // Function prototypes
 void fillBuffer(byte c);
 void fillBuffer(byte c, boolean pin, boolean spaceOK);

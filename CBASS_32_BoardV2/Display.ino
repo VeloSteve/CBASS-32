@@ -1,7 +1,5 @@
+// pre-declare this function
 void box(char* s, int line, int lineSize);
-
-
-
 
 void startDisplay() {
     // The dedicated SPI setup:

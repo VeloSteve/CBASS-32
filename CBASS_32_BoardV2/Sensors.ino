@@ -1,5 +1,5 @@
 /*
- * Boards notes.
+ * Board notes.
  * The latest Arduino ESP32 Board, 2.0.17 as of 11 Sep 2024 causes sensor detection to fail!!!
  * Back tests:
  * 2.0.10 - good

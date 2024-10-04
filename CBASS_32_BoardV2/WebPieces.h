@@ -144,8 +144,11 @@ const char uploadHTML[] PROGMEM = R"rawliteral(
 </head>
 <body>
   <div class="container">
+  <div id="message" class="flex" style="color:red; height: fit-content;">~ERROR_MSG~</div>
   <div class="wrapper flex fittwowide">
   <h1>Upload a File</h1>
+  <span style="color:red">USE WITH CARE.<br>An incorrect file can disable CBASS.</span>
+
   <form action="/Upload" method="POST" enctype="multipart/form-data">
     ~DIRECTORY_CHOICE~
     <input type="file" id="fileToUpload" name="fileToUpload" onchange=updateNewName() required>
@@ -186,6 +189,40 @@ const char rollLogNow[] PROGMEM = R"rawliteral(
     ~ROLLLOG~
 )rawliteral";
 
+/* A page for starting a reset of the ramp plan.  Normally only 
+ * used when an existing file is lost or a clean start is desired. 
+ */
+const char rebootPage[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+	<title>~TITLE~</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="/page.css" />
+</head>
+<body>
+<div id="message" class="flex" style="color:red; height: fit-content;">~ERROR_MSG~</div>
+
+<div class="container">
+<div id="resetDiv"  class="wrapper fittwowide" >
+Here you can reboot CBASS-32.  This should not be needed often except
+during development, or if you want to observe the startup sequence.
+If an experiment is in progress, not that you will lose temperature control
+and logging for 20 seconds or more.
+
+Confirm that you want to do this by entering the "Magic Word".  Note that it is not a secure password<br><br>
+<form>
+~MAGIC~
+<input name="reboot" type="hidden" value="true">
+<input type="submit" value="Reboot"><br>
+</form>
+</div>
+~LINKLIST~
+</div></body></html>
+)rawliteral";
+
+
 const char rebootHTML[] PROGMEM = R"rawliteral(
   <!DOCTYPE html>
   <html><head><title>~TITLE~
@@ -197,25 +234,7 @@ const char rebootHTML[] PROGMEM = R"rawliteral(
     <h1>Rebooting CBASS-32</h1>
     At ~DATETIME~
     <br/>
-    The links below should be available in about 12 seconds, and full operation in about 18 seconds.
-  </div>
-    ~LINKLIST~
-  </div>
-  </body></html>
-)rawliteral";
-
-const char webResetSPI[] PROGMEM = R"rawliteral(
-  <!DOCTYPE html>
-  <html><head><title>~TITLE~
-  </title>
-  <link rel="stylesheet" type="text/css" href="page.css" />  
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  </head><body>
-  <div class="container"><div class="wrapper flex fittwowide">
-    <h1>Resetting CBASS-32 SPI</h1>
-    At ~DATETIME~
-    <br/>
-    The links below should be available in about 12 seconds, and full operation in about 18 seconds.
+    The links should be available in about 12 seconds, and full operation in about 18 seconds.
   </div>
     ~LINKLIST~
   </div>
@@ -236,8 +255,6 @@ INTERP LINEAR
 6:00	30	30	33	33
 7:00	30	30	30	30
 )rawliteral";
-
-
 
 const char logHTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -270,13 +287,9 @@ const char logHTML[] PROGMEM = R"rawliteral(
 <p>You must enter the "Magic Word".  Note that it is not a secure password<br>
 
 <form>
-<label for=\"MagicWord\">Magic Word:</label>
-<input type="text" id="magicWord" name="magicWord"><br/>
+~MAGIC~
 <input name="reset" type="hidden" value="true">
 <br>
-<!-- <button type="submit" formaction="/LogDownload" name="foo" value="bar">Download Current Log File</button> -->
-<!-- <button type="submit" formaction="/LogRoll" name="foo" value="bar">Archive and Start New Log</button> -->
-
  <a id="dl" href="/LogDownload" download="LogDownload.csv"><button formaction="/LogDownload"  onclick="clearMessage()">Download Current Log</button></a>
 <button formaction="/LogRoll" type="submit" id="roll" href="/LogRoll" onclick="clearMessage()">Archive the log and start a new one.</button>
 
@@ -309,8 +322,7 @@ need to reset the clock from here if you want to match those changes.
 
 <p>To change time you must enter the "Magic Word".  It is not a secure password.<br>
 <form>
-<label for=\"MagicWord\">Magic Word:</label>
-<input type="text" id="magicWord" name="magicWord">
+~MAGIC~
 <input name="sync" type="hidden" value="true">
 
 <input type="submit" value="Sync Clock Now"><br><br>
@@ -589,3 +601,8 @@ const char plotlyHTML[] PROGMEM = R"rawliteral(
 </body></html>
 )rawliteral";
 
+/* The HTML for asking the user for a magic word. */
+const char magicBlank[] PROGMEM = R"rawliteral(
+<label for=\"MagicWord\">Magic Word:</label>
+<input type="text" id="magicWord" name="magicWord"><br/>
+)rawliteral";

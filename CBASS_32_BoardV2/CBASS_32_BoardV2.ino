@@ -184,6 +184,8 @@ const unsigned int SERIALwindow = 5000;  // Default 1000; ms between log lines
 const unsigned int serialHeaderPeriod = 10000; // Print header after this many lines.  Not useful for automated use.
 unsigned int SerialOutCount = serialHeaderPeriod + 1;  // Print at the top of any new log.
 
+unsigned long rebootMillis = 0; // if set > 0 the system will reboot when millis() > this number
+
 // Display Conversion Strings
 char setPointStr[5];  // Was an array of [NT][5], but we only need one at a time.
 char tempInputStr[5];
@@ -341,7 +343,7 @@ void loop()
   applyTargets();
   //ShowRampInfo(); // To display on serial monitor.
 
-  // **** STORE DATA FOR GRAPHING ON OTHER DEVICES *****
+  // ***** STORE DATA FOR GRAPHING ON OTHER DEVICES *****
   if (now_ms - GRAPHt > GRAPHwindow) {
     if (graphPoints.size() >= maxGraphPoints) graphPoints.erase(graphPoints.begin());
     graphPoints.emplace_back(now_ms, t, setPoint, tempT);
@@ -375,7 +377,8 @@ void loop()
     displayTemperatureStatusBold();
     LCDt += LCDwindow;
   }
-  esp_task_wdt_reset();
+  esp_task_wdt_reset();  // Reboot if hung for WDT_TIMEOUT seconds
+  if (rebootMillis && now_ms > rebootMillis) ESP.restart(); // Support web reboots.
 }
 
 void SerialSend()

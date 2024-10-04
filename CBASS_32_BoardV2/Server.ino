@@ -36,7 +36,7 @@ bool rewriteSettingsINI();
 boolean receivePlanJSON(String js, AsyncResponseStream *response);
 String processor(const String &var);
 String showDateTime();
-char *getFileName(File32& f);
+char *getFileName(File32 &f);
 void pauseLogging(boolean a);
 
 /**
@@ -78,6 +78,133 @@ size_t fileChunks(uint8_t *buffer, size_t maxLen, const char *fName) {
 }
 
 
+/** 
+ * Check for existence of a Magic Word parameter and for a correct value.
+ * Return response code 200 if good, and otherwise an appropriate code
+ * Also, set p_message text which pages can display to the user.
+ * 
+ * If extra is not empty this will also require that parameter to be set
+ * and equal to true.
+ */
+int checkMagic(AsyncWebServerRequest *request, const char *extra = "") {
+  int lx = strlen(extra);
+  int rCode = 200;
+  p_message = "";
+  // Do we have the required parameters and are they correct?
+  if (!request->hasParam("magicWord")) {
+    Serial.println("  No magic word received.");
+    p_message = "Magic word is required.";
+    return 401;  // Unauthorized
+  } else if (lx > 0 && !request->hasParam(extra)) {
+    Serial.printf("  No %s parameter received.", extra);
+    p_message = extra;
+    p_message += " parameter is missing.";
+    return 406;  // Not acceptable
+  }
+
+  // Are they correct?
+  AsyncWebParameter *p = request->getParam("magicWord");
+  Serial.printf("server action got magicWord %s\n", p->value().c_str());
+  if (!(p->value()).equals(MAGICWORD)) {
+    p_message = "Incorrect Magic Word.";
+    return 401;
+  }
+
+  if (lx > 0) {
+    p = request->getParam(extra);
+    if (!(p->value()).equals("true")) {
+      p_message = "Action parameter " + String(extra) + " must be true.";
+      return 406;
+    }
+  }
+  return 200;
+}
+
+
+/*
+ * Send a file from the client to CBASS.  Note that we cannot use magicWord here because the
+ * request object received does not have all of the parameters!
+ */
+void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+  // Save uploaded file to SD
+  // On SD (maybe not on SPIFFS) files must start with "/".
+  Serial.printf("Upload index = %d\n", index);
+
+  if (!index) {
+    Serial.println("All parameters");
+    int params = request->params();
+    Serial.printf("There are %d parameters.\n", params);
+    for (int i = 0; i < params; i++) {
+      AsyncWebParameter *p = request->getParam(i);
+      if (p->isFile()) {  //p->isPost() is also true
+        Serial.printf("FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
+      } else if (p->isPost()) {
+        Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
+      } else {
+        Serial.printf("GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
+      }
+    }
+    Serial.println("End parameters");
+  }
+  // Convention: Files and directories start but do not end with a "/".
+  if (!filename.startsWith("/")) filename = "/" + filename;
+  if (filename.endsWith("/")) filename.remove(filename.lastIndexOf("/"));
+  static String dC;
+  static String nD;
+  static String fullPath;
+  if (!index) {
+    Serial.printf("UploadStart: %s\n", filename.c_str());
+    AsyncWebParameter *p = request->getParam("dirChoices", true);  // "true" argument required since this is a POST, not GET.
+    Serial.printf("dirChoices printable? %s\n", p->value().c_str());
+    delay(1000);
+
+    //dC = String(p->value().c_str());
+    dC = p->value();
+
+    dC.trim();
+    if (dC == "--new--") {
+      // get the name, create the directory if needed, and change into it.
+      p = request->getParam("newdir", true);
+      nD = p->value();
+      // For consistency, remove any leading "/"
+      if (nD.startsWith("/")) nD.remove(0, 1);
+      if (filename.endsWith("/")) filename.remove(filename.lastIndexOf("/"));
+      if (SDF.exists(nD)) {
+        Serial.printf("ERROR: no upload.  File or directory %s already exists.\n", nD);
+        return;
+        // XXX does this abort the upload or just the first of many calls?
+      }
+      //File32 root = SDF.open("/", O_WRONLY);
+      SDF.mkdir(nD);
+      fullPath = "/" + nD;
+    } else if (dC == "/") {
+      fullPath = "/";
+    } else {
+      // change to the selected directory.  It should exist since it came from the dropdown,
+      // but check.
+      fullPath = "/" + dC;
+    }
+    fullPath = fullPath + filename;
+    Serial.printf("Upload had dC = %s, nD = %s, fullPath = %s.\n", dC.c_str(), nD.c_str(), fullPath.c_str());
+    SDF.remove(fullPath);
+    pauseLogging(true);  // Do not interrupt during a log write, but pause it.
+  }
+  File32 file = SDF.open(fullPath, O_WRONLY | O_CREAT | O_APPEND);
+  file.seekEnd(0);  // Belt and suspenders.  Be sure we are at the end.
+  if (file) {
+    for (size_t i = 0; i < len; i++) {
+      file.write(data[i]);
+    }
+    file.close();
+  } else {
+    Serial.printf("Failed to open destination %s on CBASS.\n", filename);
+  }
+  if (final) {
+    pauseLogging(false);
+    Serial.printf("UploadEnd: %s, %u B\n", fullPath.c_str(), index + len);
+  }
+}
+
 /**
  * This is the main function which sets up handling of requests.  It uses the
  * globally-defined server variable to access methods of an AsyncWebServer.
@@ -91,6 +218,15 @@ void defineWebCallbacks() {
     Serial.println("Sending root web page.");
     p_title = "CBASS-32 Start Page";
     AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", basePage, processor);
+    response->addHeader("Server", "ESP Async Web Server");
+    request->send(response);
+  });
+
+  // About page
+  server.on("/About", HTTP_GET, [](AsyncWebServerRequest *request) {
+    Serial.println("Sending About page.");
+    p_title = "About CBASS-32";
+    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", aboutPage, processor);
     response->addHeader("Server", "ESP Async Web Server");
     request->send(response);
   });
@@ -114,23 +250,8 @@ void defineWebCallbacks() {
     Serial.println("Rolling over LOG.txt");
     p_title = "Log Rollover Result";
 
+    int rCode = checkMagic(request, "");
 
-    int rCode = 200;
-    if (!request->hasParam("magicWord")) {
-      rCode = 401;  // Unauthorized
-      p_message = "  No magic word received with log roll request.";
-      Serial.println(p_message);
-    } else {
-      AsyncWebParameter *p = request->getParam("magicWord");
-      Serial.printf("LogRoll got magicWord %s\n", p->value().c_str());
-
-      if ((p->value()).equals(MAGICWORD)) {
-        rCode = 200;
-      } else {
-        rCode = 401;
-        p_message = "  Wrong or missing magic word.";
-      }
-    }
     if (rCode != 200) {
       AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTML, processor);
       response->addHeader("Server", "ESP Async Web Server");
@@ -158,18 +279,6 @@ void defineWebCallbacks() {
     request->send(response);
   });
 
-  // Can resetting the SPI bus clear errors with the display and/or SD card?
-  // Note that there is no reset function, I'm just going to end, begin, and toggle the 
-  // CS pin values to see whether it helps.
-  server.on("/ResetSPI", HTTP_GET, [](AsyncWebServerRequest *request) {
-    Serial.println("SPI reset?");
-    p_title = "Attept to reset SPI";
-    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", webResetSPI, processor);
-    response->addHeader("Server", "ESP Async Web Server");
-    request->send(response);
-    resetDisplayPins();
-  });
-
   // Javascript for the ramp plan
   server.on("/rampPlan.js", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Sending ramp plan plot javascript");
@@ -183,11 +292,10 @@ void defineWebCallbacks() {
    * Part 1:
    * Receive data and update ramp plan
    * WARNING: long request bodies will result in this being called more than once.  The
-   * user code is responsible for putting it back together. It breaks at arbitrary, for example
-   * between digits of a number!
+   * user code is responsible for putting it back together. It breaks at arbitrary points, for
+   * example between digits of a number!
    * 1620 bytes gets broken pretty close to the end.  Test with that much even though typical CBASS
    * work will use less.  Maybe this is based on the typical 1500 byte ethernet packet?
-   *
    *
    * Note that this does not return a web page, just a message, so the usual HTML parts are omitted.
    */
@@ -250,25 +358,32 @@ void defineWebCallbacks() {
       AsyncWebParameter *p = request->getParam("oldest");
       // Serial.printf("runT got oldest %s\n", p->value().c_str());
       char *ptr;
-      sendXYHistory(response, strtoul(p->value().c_str(), &ptr, 10)); // Convert parameter to unsigned long, base 10.  ptr is required but not used here.
+      sendXYHistory(response, strtoul(p->value().c_str(), &ptr, 10));  // Convert parameter to unsigned long, base 10.  ptr is required but not used here.
     }
     request->send(response);
     // Serial.print("Sent to "); Serial.println(request->client()->remoteIP());
   });
 
+
+
+
   // TODO require password
   server.on("/Reboot", HTTP_GET, [](AsyncWebServerRequest *request) {
-    Serial.println("Rebooting by Web request!");
-    Serial.flush();
     p_title = "CBASS-32 Web Reboot";
-    request->redirect("/AfterReboot");
-    //AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", rebootHTML, processor);
-    //response->addHeader("Server", "ESP Async Web Server");
-    //request->send(response);
-    delay(1000);
-    //request->redirect("/");
-    //delay(1000);
-    ESP.restart();
+    int rCode = checkMagic(request, "reboot");
+    if (rCode == 200) {
+      Serial.println("Rebooting by Web request!");
+      Serial.flush();
+      // Do we get different behavior from a full url (external redirect) vs. just /AfterReboot ?
+      String url = String("http://") + myIP.toString() + "/AfterReboot";
+      request->redirect(url);  //  href=\"http://%s/files\" // 
+      rebootMillis = millis() + 2500;
+      //request->redirect("/");
+      //delay(1000);
+      //ESP.restart();
+      return;
+    }
+    request->send_P(rCode, "text/html", rebootPage, processor);   
   });
 
   server.on("/AfterReboot", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -288,35 +403,28 @@ void defineWebCallbacks() {
     // Before responding, set the clock if parameters are correct.
     // The hasParam checks are rather verbose, but they make it easier to diagnose
     // problems.
-    int rCode = 200;
-    if (!request->hasParam("magicWord")) {
-      rCode = 401;  // Unauthorized
-      Serial.println("  No magic word received.");
-    } else if (!request->hasParam("datetime")) {
-      rCode = 406;  // Not acceptable
-      Serial.println("  No time string received.");
-    } else if (!request->hasParam("sync")) {
-      rCode = 406;  // Not acceptable
-      Serial.println("  No sync parameter received.");
-    } else {
-      AsyncWebParameter *p = request->getParam("sync");
-      Serial.printf("updateDateTime got sync %s\n", p->value().c_str());
-      if ((p->value()).equals("true")) {
-        p = request->getParam("magicWord");
-        Serial.printf("updateDateTime got magicWord %s\n", p->value().c_str());
+    int rCode;
 
-        if ((p->value()).equals(MAGICWORD)) {
-          p = request->getParam("datetime");
-          Serial.printf("updateDateTime got time %s\n", p->value().c_str());
-          // The value should look like:
-          // 27/01/2024 15:38:46
-          changed = settime(p->value().c_str());
-          if (!changed) rCode = 500;
-        } else {
-          rCode = 401;
-        }
+    // checkMagic checks the magic word and sync flag.  Then we check for datetime
+    // separately.
+    rCode = checkMagic(request, "sync");
+
+    if (rCode == 200) {
+      if (!request->hasParam("datetime")) {
+        rCode = 406;  // Not acceptable
+        Serial.println("  No time string received.");
+        p_message = "No time value received.";
       } else {
-        rCode = 406;
+        AsyncWebParameter *p = request->getParam("datetime");
+        Serial.printf("updateDateTime got time %s\n", p->value().c_str());
+        // The value should look like:
+        // 27/01/2024 15:38:46
+        changed = settime(p->value().c_str());
+        if (!changed) {
+          p_message = "Unable to set time to ";
+          p_message += p->value().c_str();
+          rCode = 500;
+        }
       }
     }
     Serial.print("updateDateTime changed flag is ");
@@ -326,7 +434,8 @@ void defineWebCallbacks() {
     if (changed) {
       response = request->beginResponse(200, "text/html", showDateTime());
     } else {
-      response = request->beginResponse_P(rCode, "text/html", String("Failure.  Time is still " + showDateTime() + ".").c_str(), processor);
+      response = request->beginResponse(rCode, "text/html", String("Failure.  Time is still " + showDateTime() + ".").c_str());
+      //Serial.println(String("Failure.  Time is still " + showDateTime() + ".").c_str());
     }
     response->addHeader("Server", "ESP Async Web Server");
     request->send(response);
@@ -379,65 +488,31 @@ void defineWebCallbacks() {
    */
   server.on("/ResetRampPlan", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Ramp plan reset page.");
-    if (request->hasParam("magicWord") && request->hasParam("reset")) {
-      Serial.println("  has both magic word and reset params");
-      AsyncWebParameter *pm = request->getParam("magicWord");  // value() is a String
-      AsyncWebParameter *pr = request->getParam("reset");
-      p_message = "";
-      if (pm->value() == MAGICWORD) {
-        if (pr->value() == "true") {
-          Serial.println("  Magic word matches, ok to reset");
-
-          if (resetSettings()) {
-            // Send the ramp management page.
-            request->redirect("/RampPlan");
-            return;
-          } else {
-            Serial.println("Reset failed.  You may need to repair the SD card manually.");
-            p_message = "Reset failed.  You may need to repair the SD card manually.";
-          }
-        } else {
-          Serial.println("Settings.ini reset was missing a required parameter.");
-          p_message = "Settings.ini reset was missing a required parameter.";
-        }
+    int rCode = checkMagic(request, "reset");
+    if (rCode == 200) {
+      if (resetSettings()) {
+        // Send the ramp management page.
+        request->redirect("/RampPlan");
+        return;
       } else {
-        Serial.println("Magic word does not match!");
-        p_message = "Magic word does not match!";
+        Serial.println("Reset failed.  You may need to repair the SD card manually.");
+        p_message = "Reset failed.  You may need to repair the SD card manually.";
+        rCode = 500;
       }
-      // Resend page with specified message.
-
-    } else {
-      Serial.println("Didn't get two parameters.  Sending the base page.");
-      // No parameters (one one missing) so just use the base page with no message.
-      ;
     }
-    request->send_P(200, "text/html", iniResetPage, processor);
+    request->send_P(rCode, "text/html", iniResetPage, processor);
   });
 
   /**
    * Note that his sends a file for download, so it doesn't have html code processing.
    */
-//  Chunked response - my function will provide the chunks using the SdFat library.
+  //  Chunked response - my function will provide the chunks using the SdFat library.
   server.on("/LogDownload", HTTP_GET, [](AsyncWebServerRequest *request) {
     fileChunkPos = 0;  // Lets the function know to start at zero.
     p_message = "";
 
-    int rCode = 200;
-    if (!request->hasParam("magicWord")) {
-      rCode = 401;  // Unauthorized
-      p_message = "  No magic word received with download request.";
-      Serial.println(p_message);
-    } else {
-      AsyncWebParameter *p = request->getParam("magicWord");
-      Serial.printf("LogDownload got magicWord %s\n", p->value().c_str());
+    int rCode = checkMagic(request);
 
-      if ((p->value()).equals(MAGICWORD)) {
-        rCode = 200;
-      } else {
-        rCode = 401;
-        p_message = "  Wrong magic word.";
-      }
-    }
     if (rCode != 200) {
       // Send the management page with the message set above.
       AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", logHTML, processor);
@@ -447,7 +522,7 @@ void defineWebCallbacks() {
     }
 
     Serial.println("In LogDownload call.");
-    fileChunkPos = 0; // Start at byte zero - this should already be set.
+    fileChunkPos = 0;  // Start at byte zero - this should already be set.
 
     // The original sendChunked approach did not allow adding a header. Now we can set the desired .csv extension.
     AsyncWebServerResponse *response = request->beginChunkedResponse("text/plain", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
@@ -457,14 +532,14 @@ void defineWebCallbacks() {
       //Keep in mind that you can not delay or yield waiting for more data!
       return fileChunks((uint8_t *)buffer, maxLen, "/LOG.txt");
     });
-    response->addHeader("Server","ESP Async Web Server");
+    response->addHeader("Server", "ESP Async Web Server");
     response->addHeader("Content-Disposition", "attachment; filename=\"LogDownload.csv\"");
     request->send(response);
 
     pauseLogging(false);  // Normally set false in the last logChunks call, but verify.
   });
 
-  // File upload
+// File upload
 #ifdef ALLOW_UPLOADS
   server.on("/UploadPage", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Sending upload page.");
@@ -473,105 +548,39 @@ void defineWebCallbacks() {
     response->addHeader("Server", "ESP Async Web Server");
     request->send(response);
   });
-#endif
 
-#ifdef ALLOW_UPLOADS
-  server.on("/Upload", HTTP_POST, [](AsyncWebServerRequest *request) {
+
+  /*
+   * Allows the user to upload a file to a specified location on CBASS-32.
+   * This is to be used with care - if key files become invalid CBASS will not start.
+   */
+  server.on(
+    "/Upload", HTTP_POST, [](AsyncWebServerRequest *request) {
       AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", uploadSuccess, processor);
+      Serial.println("In first response section of /Upload");
+      int params = request->params();
+      for (int i = 0; i < params; i++) {
+        AsyncWebParameter *p = request->getParam(i);
+        if (p->isFile()) {  //p->isPost() is also true
+          Serial.printf("u FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
+        } else if (p->isPost()) {
+          Serial.printf("u POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
+        } else {
+          Serial.printf("u GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
+        }
+      }
+      Serial.println("End parameters (upper)");
       request->send(response);
     },
-    [](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-      // Save uploaded file to SD
-      // TODO: handle a subdirectoriesctory.
-      // On SD (maybe not on SPIFFS) files must start with "/".
-      //Serial.printf("Upload index = %d\n", index);
-      if (!index) {
-        Serial.println("All parameters");
-        int params = request->params();
-        for(int i=0;i<params;i++){
-          AsyncWebParameter* p = request->getParam(i);
-          if(p->isFile()){ //p->isPost() is also true
-            Serial.printf("FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
-          } else if(p->isPost()){
-            Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
-          } else {
-            Serial.printf("GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
-          }
-        }
-        Serial.println("End parameters");
-      }
-      // Convention: Files and directories start but do not end with a "/".
-      if (!filename.startsWith("/")) filename = "/" + filename;
-      if (filename.endsWith("/")) filename.remove(filename.lastIndexOf("/"));
-      static String dC;
-      static String nD;
-      static String fullPath;
-      if (!index) {
-        Serial.printf("UploadStart: %s\n", filename.c_str());
-        AsyncWebParameter* p = request->getParam("dirChoices", true);  // "true" argument required since this is a POST, not GET.
-        Serial.printf("dirChoices printable? %s\n", p->value().c_str()); delay(1000);
-
-        //dC = String(p->value().c_str());
-        dC = p->value();
-
-        dC.trim();
-        if (dC == "--new--") {
-          // get the name, create the directory if needed, and change into it.
-          p = request->getParam("newdir", true);
-          nD = p->value();
-          // For consistency, remove any leading "/"
-          if (nD.startsWith("/")) nD.remove(0, 1);
-          if (filename.endsWith("/")) filename.remove(filename.lastIndexOf("/"));
-          if (SDF.exists(nD)) {
-            Serial.printf("ERROR: no upload.  File or directory %s already exists.\n", nD);
-            return;
-            // XXX does this abort the upload or just the first of many calls?
-          }
-          //File32 root = SDF.open("/", O_WRONLY);
-          SDF.mkdir(nD);
-          fullPath = "/" + nD;
-        } else if (dC == "/") {
-          fullPath = "/";
-        } else {
-          // change to the selected directory.  It should exist since it came from the dropdown,
-          // but check.
-          fullPath = "/" + dC;
-        }
-        fullPath = fullPath + filename;
-        Serial.printf("Upload had dC = %s, nD = %s, fullPath = %s.\n", dC.c_str(), nD.c_str(), fullPath.c_str());
-        SDF.remove(fullPath);
-        pauseLogging(true);  // Do not interrupt during a log write, but pause it.
-      }
-      File32 file = SDF.open(fullPath, O_WRONLY | O_CREAT | O_APPEND);
-      file.seekEnd(0);  // Belt and suspenders.  Be sure we are at the end.
-      if (file) {
-        for (size_t i = 0; i < len; i++) {
-          file.write(data[i]);
-        }
-        file.close();
-      } else {
-        Serial.printf("Failed to open destination %s on CBASS.\n", filename);
-      }
-      if (final) {
-        pauseLogging(false);
-        Serial.printf("UploadEnd: %s, %u B\n", fullPath.c_str(), index + len);
-      }
-    });
+    handleUpload
+  );
 #endif
 
-  // About page
-  server.on("/About", HTTP_GET, [](AsyncWebServerRequest *request) {
-    Serial.println("Sending About CBASS-32 web page.");
-    p_title = "CBASS-32 Start Page";
-    AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", aboutPage, processor);
-    response->addHeader("Server", "ESP Async Web Server");
-    request->send(response);
-  });
 
-    //  Chunked response - my function will provide the chunks using the SdFat library.
+  //  Chunked response - my function will provide the chunks using the SdFat library.
   server.on("/32Board.png", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Sending board image.");
-    fileChunkPos = 0; // Start at byte zero - this should already be set.
+    fileChunkPos = 0;  // Start at byte zero - this should already be set.
     request->sendChunked(
       "image/png",
       [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
@@ -596,7 +605,6 @@ void defineWebCallbacks() {
     request->send(404, "text/plain", "Not found on this reef.");
   });
   Serial.println(" Done defining server actions.");
-
 }
 
 
@@ -692,8 +700,8 @@ String rollLog() {
   }
 }
  */
-void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest default 0 is in forward declaration */
-  esp_task_wdt_reset();  // Not sure if timeouts are an issue here, but be safer.
+void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) { /* oldest default 0 is in forward declaration */
+  esp_task_wdt_reset();                                             // Not sure if timeouts are an issue here, but be safer.
   short debug = 0;
   long unsigned startSend;
   if (debug) startSend = millis();
@@ -708,7 +716,7 @@ void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest d
   // returning all points (oldest == 0) or just a few.
   // Times as 0 ms, so leave it as is.
   if (oldest > 0) {
-    for (i=graphPoints.size()-1; i >= 0; i--) {
+    for (i = graphPoints.size() - 1; i >= 0; i--) {
       if (graphPoints[i].timestamp >= oldest) {
         start = i;
       } else {
@@ -718,7 +726,7 @@ void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest d
     if (start == 0) {
       // No points need sending.  Do not start at zero in this case!
       rs->printf("{\"NT\":%d,\"points\":{}}", NT);
-      if (debug) Serial.printf("Nothing to send.  Oldest was %8d, last graphPoint %d\n", oldest, graphPoints[graphPoints.size()-1].timestamp);
+      if (debug) Serial.printf("Nothing to send.  Oldest was %8d, last graphPoint %d\n", oldest, graphPoints[graphPoints.size() - 1].timestamp);
       return;
     }
   }
@@ -732,25 +740,25 @@ void sendXYHistory(AsyncResponseStream *rs, unsigned long oldest) {  /* oldest d
   } */
   String pp[20];
   int sCount = 0;
-  for (int i=start; i<end; i++) {
+  for (int i = start; i < end; i++) {
     pp[sCount] = dataPointToJSON(graphPoints[i]);
     sCount++;
     if (sCount == 20) {
       // Tedious, but much faster than sending one at a time.
-       if (i == end-1) rs->printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s",  pp[0].c_str(), pp[1].c_str(), pp[2].c_str(), pp[3].c_str(), pp[4].c_str(), pp[5].c_str(), pp[6].c_str(), pp[7].c_str(), pp[8].c_str(), pp[9].c_str(), pp[10].c_str(), pp[11].c_str(), pp[12].c_str(), pp[13].c_str(), pp[14].c_str(), pp[15].c_str(), pp[16].c_str(), pp[17].c_str(), pp[18].c_str(), pp[19].c_str());
-      else            rs->printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,", pp[0].c_str(), pp[1].c_str(), pp[2].c_str(), pp[3].c_str(), pp[4].c_str(), pp[5].c_str(), pp[6].c_str(), pp[7].c_str(), pp[8].c_str(), pp[9].c_str(), pp[10].c_str(), pp[11].c_str(), pp[12].c_str(), pp[13].c_str(), pp[14].c_str(), pp[15].c_str(), pp[16].c_str(), pp[17].c_str(), pp[18].c_str(), pp[19].c_str());
+      if (i == end - 1) rs->printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s", pp[0].c_str(), pp[1].c_str(), pp[2].c_str(), pp[3].c_str(), pp[4].c_str(), pp[5].c_str(), pp[6].c_str(), pp[7].c_str(), pp[8].c_str(), pp[9].c_str(), pp[10].c_str(), pp[11].c_str(), pp[12].c_str(), pp[13].c_str(), pp[14].c_str(), pp[15].c_str(), pp[16].c_str(), pp[17].c_str(), pp[18].c_str(), pp[19].c_str());
+      else rs->printf("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,", pp[0].c_str(), pp[1].c_str(), pp[2].c_str(), pp[3].c_str(), pp[4].c_str(), pp[5].c_str(), pp[6].c_str(), pp[7].c_str(), pp[8].c_str(), pp[9].c_str(), pp[10].c_str(), pp[11].c_str(), pp[12].c_str(), pp[13].c_str(), pp[14].c_str(), pp[15].c_str(), pp[16].c_str(), pp[17].c_str(), pp[18].c_str(), pp[19].c_str());
       sCount = 0;
     }
   }
 
   // Send any remaining items in the set.
-  for (int i=0; i < sCount; i++) {
+  for (int i = 0; i < sCount; i++) {
     rs->print(pp[i]);
-    if (i < sCount-1) rs->print(",");
+    if (i < sCount - 1) rs->print(",");
   }
   rs->print("}}");  // Close points list and the overall JSON string.
   esp_task_wdt_reset();
-  if (debug) Serial.printf("Sent %5d points in %4lu ms (cumulative).  Max was %4d.  Oldest was %8d Start was %5d  %7d s runtime.\n", end-start, millis()-startSend, maxBatch, oldest, start, (int)(millis()/1000));
+  if (debug) Serial.printf("Sent %5d points in %4lu ms (cumulative).  Max was %4d.  Oldest was %8d Start was %5d  %7d s runtime.\n", end - start, millis() - startSend, maxBatch, oldest, start, (int)(millis() / 1000));
 }
 
 /**
@@ -847,7 +855,7 @@ String sendFileInfo() {
  * SdFat files don't have .name().  Use .getName and return a buffer.
  * Note that fnBuffer is updated whether the return value is handled or not.
  */
-char *getFileName(File32& f) {
+char *getFileName(File32 &f) {
   static char temp[maxPathLen];
   f.getName(fnBuffer, maxPathLen);
   // The ~ character interferes with later replacements by the text processor.  Replace with &tilde;
@@ -856,11 +864,10 @@ char *getFileName(File32& f) {
   char *pos;
   while (pos = strstr(fnBuffer, "~")) {
     // There is a ~ (otherwise null is returned from strstr)
-    strncpy(temp, fnBuffer, pos-fnBuffer);  // Copy up to the ~
-    temp[pos-fnBuffer] = '\0';                // null terminate (sprintf does this, strncpy does not)
-    sprintf(temp + (pos-fnBuffer), "%s%s", "&tilde;", pos+1);  // append the tilde and the rest of the original.
-    sprintf(fnBuffer, "%s", temp);  // Back into fnBuffer for another pass (rare) or as result.
-
+    strncpy(temp, fnBuffer, pos - fnBuffer);                       // Copy up to the ~
+    temp[pos - fnBuffer] = '\0';                                   // null terminate (sprintf does this, strncpy does not)
+    sprintf(temp + (pos - fnBuffer), "%s%s", "&tilde;", pos + 1);  // append the tilde and the rest of the original.
+    sprintf(fnBuffer, "%s", temp);                                 // Back into fnBuffer for another pass (rare) or as result.
   }
   return fnBuffer;
 }
@@ -924,7 +931,7 @@ void sendRampForm(AsyncResponseStream *rs) {
 
   // Add the start time and magic word area.
   rs->println("<div class=\"wrapper flex fittwowide\" id=\"tableextras\">");
-    // Show the start time, if specified.
+  // Show the start time, if specified.
   if (relativeStart) {
     int hr = (int)(relativeStartTime / 60);
     int min = relativeStartTime - hr * 60;
@@ -939,8 +946,8 @@ void sendRampForm(AsyncResponseStream *rs) {
     rs->print("Enter times in HH:MM or H:MM format only.  Seconds are not supported.<br>");
 
     rs->print("The \"Magic Word\" is not a secure password.  It is there to make you think twice.");
-    rs->println("<label for=\"MagicWord\">Magic Word:</label>");
-    rs->println("<div><input type=\"text\" id=\"MagicWord\" name=\"MagicWord\" onblur=\"changedMagic(this)\">");
+    rs->println("<div><label for=\"MagicWord\">Magic Word:</label>");
+    rs->println("<input type=\"text\" id=\"MagicWord\" name=\"MagicWord\" onblur=\"changedMagic(this)\">");
 
     rs->println("<button id=\"sendbutton\" onclick=\"submitRampData()\" disabled>Update Data</button></div></div>");
 
@@ -1064,7 +1071,7 @@ boolean receivePlanJSON(String js, AsyncResponseStream *rs) {
     return false;
   }
 
-  // Magic word
+  // Magic word (in JSON)
   startIndex = js.indexOf("\"magicWord\"") + 13;
   endIndex = js.indexOf("\"}", startIndex);
   val = js.substring(startIndex, endIndex);
@@ -1192,7 +1199,6 @@ String directoryInput() {
   //Serial.println("Before return, rString is:");
   //Serial.println(rString);
   return rString;
-
 }
 #endif
 
@@ -1219,7 +1225,7 @@ String processor(const String &var) {
   }
   if (var == "ERROR_MSG") {
     String m = p_message;
-    p_message = ""; // Don't let it carry over to later
+    p_message = "";  // Don't let it carry over to later
     return m;
   } else if (var == "TITLE") {
     if (p_title.isEmpty()) return String("CBASS-32");
@@ -1231,11 +1237,12 @@ String processor(const String &var) {
   else if (var == "IP") return myIP.toString();
   else if (var == "TABLE_NT") return tableForNT();
   else if (var == "DATETIME") return showDateTime();
+  else if (var == "MAGIC") return magicBlank;
 #ifdef ALLOW_UPLOADS
   else if (var == "DIRECTORY_CHOICE") return directoryInput();
   else if (var == "UPLOAD_LINK") return String("<li><a href=\"/UploadPage\">Upload any file.</a></li>");
 #else
-  else if (var == "UPLOAD_LINK" || var == "DIRECTORY_CHOICE")   return String(" ");
+  else if (var == "UPLOAD_LINK" || var == "DIRECTORY_CHOICE") return String(" ");
 #endif
   // If the whole if-else falls through return an empty String.
   return String();
@@ -1253,7 +1260,7 @@ String manualProcess(const String &var) {
   int pos;
   if ((pos = var.indexOf("~UPLOAD_LINK~")) >= 0) {
     Serial.println("GOT IT");
-    return var.substring(0,pos) + processor("UPLOAD_LINK") + var.substring(pos + 13);
+    return var.substring(0, pos) + processor("UPLOAD_LINK") + var.substring(pos + 13);
   } else {
     return var;
   }
@@ -1268,7 +1275,7 @@ void pauseLogging(boolean a) {
     if (!logPaused) {
       startPause = millis();
       logPaused = true;  // Don't let a new log line start.
-      delay(100);  // Let any in-progress log line complete.
+      delay(100);        // Let any in-progress log line complete.
     }
   } else {
     startPause = 0;

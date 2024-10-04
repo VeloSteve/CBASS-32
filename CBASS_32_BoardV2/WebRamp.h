@@ -24,13 +24,11 @@ Normally you will make changes to an existing Settings.ini file by using the <a 
 You will then have a default ramp plan which you will almost certainly need to modify before
 running experiments.</p>
 
-Confirm that you want to do this by entering the "Magic Word".  Note that it is not a secure password<br>
+Confirm that you want to do this by entering the "Magic Word".  Note that it is not a secure password<br><br>
 <form>
-<label for=\"MagicWord\">Magic Word:</label>
-<input type="text" id="magicWord" name="magicWord"><br/>
+~MAGIC~
 <input name="reset" type="hidden" value="true">
-<br>
-<input type="submit" value="Reset Settings.ini"><br><br>
+<input type="submit" value="Reset Settings.ini"><br>
 </form>
 </div>
 ~LINKLIST~

@@ -220,7 +220,6 @@ void setup()
   tftMessage("    Less wiring,\n    more science!", false);
 
   checkWebPlaceholder(); // Be sure the web library has the required edit (see docs under "Working Environment" at https://tinyurl.com/CBASS-32)
-  Serial.printf("Web placeholder is >%c<\n", TEMPLATE_PLACEHOLDER);
 
   clockInit();  // Keep this before any use of the clock for logging or ramps.
   bootTime = gettime();

@@ -52,6 +52,7 @@ WARNING: do not upgrade the Arduino ESP32 board definition past 2.0.13.
 
    Other imported libraries may be subject to their own terms.
 
+   Documentation is at https://tinyurl.com/CBASS-32
    The software is hosted at https://github.com/VeloSteve/CBASS-32
    The V2 version is here: https://github.com/VeloSteve/CBASS-32/tree/main/CBASS_32_BoardV2
  ********************************************************/
@@ -217,6 +218,9 @@ void setup()
   Serial.println("\n===== Booting CBASS-32 =====");
   Serial.printf("Running on core %d.\n", xPortGetCoreID());
   tftMessage("    Less wiring,\n    more science!", false);
+
+  checkWebPlaceholder(); // Be sure the web library has the required edit (see docs under "Working Environment" at https://tinyurl.com/CBASS-32)
+  Serial.printf("Web placeholder is >%c<\n", TEMPLATE_PLACEHOLDER);
 
   clockInit();  // Keep this before any use of the clock for logging or ramps.
   bootTime = gettime();
@@ -482,3 +486,7 @@ void ShowRampInfo() {
   }
 }
 
+void checkWebPlaceholder() {
+  if (TEMPLATE_PLACEHOLDER == '~') return;
+  fatalError(F("You must edit WebResponseImpl.h to replace \"%\" with \"~\".  See https://tinyurl.com/CBASS-32"));
+}

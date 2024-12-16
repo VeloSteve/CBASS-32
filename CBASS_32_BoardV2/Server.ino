@@ -105,7 +105,9 @@ int checkMagic(AsyncWebServerRequest *request, const char *extra = "") {
   // Are they correct?
   AsyncWebParameter *p = request->getParam("magicWord");
   Serial.printf("server action got magicWord %s\n", p->value().c_str());
-  if (!(p->value()).equals(MAGICWORD)) {
+  String trimmed = String(p->value());  // Remove accidental whitespace.
+  trimmed.trim();
+  if (!trimmed.equals(MAGICWORD)) {
     p_message = "Incorrect Magic Word.";
     return 401;
   }

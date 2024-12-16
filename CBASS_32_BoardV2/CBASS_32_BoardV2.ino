@@ -172,7 +172,7 @@ std::vector<PID> pids;
 // long-term average of about 104 kB.
 //
 // 6 hours is a reasonable compromise for fast loading of the graphs on an external device.
-// 12 hours or 24 hours should be safe.  Up to 72 hours can be loaded, but this leaves minimal
+// 12 hours is safe.  Up to 72 hours can be loaded, but this leaves minimal
 // extra memory on the system and could be unstable.
 // This is based on NT = 8 and GRAPHwindow = 5000.  Memory use should decease linearly with increasing
 // GRAPHwindow.  Use drops less than linearly with decreasing NT since timestamps consume 
@@ -281,9 +281,10 @@ void setup()
   LCDt = millis() - LCDwindow;
   GRAPHt = millis() - GRAPHwindow;
 
-  Serial.println("Heap info at end of setup:");
-  Serial.print("heap_caps_get_largest_free_block(MALLOC_CAP_32BIT) = "); Serial.print(heap_caps_get_largest_free_block(MALLOC_CAP_32BIT));
-  Serial.printf(" maxGraphPoints = %d\n", maxGraphPoints);
+  // For debugging memory use only.
+  // Serial.println("Heap info at end of setup:");
+  // Serial.print("heap_caps_get_largest_free_block(MALLOC_CAP_32BIT) = "); Serial.print(heap_caps_get_largest_free_block(MALLOC_CAP_32BIT));
+  // Serial.printf(" maxGraphPoints = %d\n", maxGraphPoints);
 }
 
 /**
@@ -314,6 +315,7 @@ void loop()
   // ***** STORE DATA FOR GRAPHING ON OTHER DEVICES *****
   if (now_ms - GRAPHt > GRAPHwindow) {
     if (graphPoints.size() >= maxGraphPoints) graphPoints.erase(graphPoints.begin());
+    // Note that the next line implies passing the arguments to a DataPoint constructor.
     graphPoints.emplace_back(now_ms, t, setPoint, tempT);
     GRAPHt += GRAPHwindow;
   }

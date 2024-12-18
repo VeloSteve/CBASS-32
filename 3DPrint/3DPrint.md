@@ -3,6 +3,8 @@
 These STL files may be used to print custom boxes for CBASS-32.  It is up to you
 to chose your material and the best settings for your printer.
 
+There is [more detail in the manual](https://tinyurl.com/CBASS-32).  Please read the 'Print a box' section there.
+
 The files may change without warning, so if you have a favorite, keep a copy.  On
 the other hand, new CBASS-32 versions may have some changes in dimensions, so always
 check for new files when there is a new board version.
@@ -33,6 +35,11 @@ The lid file assumes that a plastic window of 50 x 65 mm will be glued in.  I us
 abrasion-resistent (AR) polycarbonate](https://www.tapplastics.com/product/plastics/cut_to_size_plastic/polycarbonate_sheets_ar/517) in 1/8" thickness.  Thinner plastic would be fine, and it
 is probably cheaper to cut your own parts from a hardware store sheet if you only need a few.  In
 quantities of 30 the Tap plastics parts are under $1.50 with tax and shipping.
+
+To provide strong attachment for the lid bolts you will add brass inserts to the lid. [Here is one option[(https://www.amazon.com/gp/product/B08BCRZZS3/).
+
+You will also need some o-ring material for the groove in the lid. I have tried [one from Amazon which works](https://www.amazon.com/gp/product/B00QVB6NE4)
+and [another I like better](https://www.amazon.com/Actual-Silicone-Durometer-Thickness-10/dp/B00QVB13P8).  Either gives you plenty of material for more boxes than most labs ever need.
 
 The overlap files are optional, but I prefer to use them for making strong boxes with less material.
 The idea is to allow the slicer to hollow the walls, but not at the corners and around key connectors.

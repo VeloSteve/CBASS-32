@@ -36,7 +36,7 @@ abrasion-resistent (AR) polycarbonate](https://www.tapplastics.com/product/plast
 is probably cheaper to cut your own parts from a hardware store sheet if you only need a few.  In
 quantities of 30 the Tap plastics parts are under $1.50 with tax and shipping.
 
-To provide strong attachment for the lid bolts you will add brass inserts to the lid. [Here is one option[(https://www.amazon.com/gp/product/B08BCRZZS3/).
+To provide strong attachment for the lid bolts you will add brass inserts to the lid. [Here is one option](https://www.amazon.com/gp/product/B08BCRZZS3/).
 
 You will also need some o-ring material for the groove in the lid. I have tried [one from Amazon which works](https://www.amazon.com/gp/product/B00QVB6NE4)
 and [another I like better](https://www.amazon.com/Actual-Silicone-Durometer-Thickness-10/dp/B00QVB13P8).  Either gives you plenty of material for more boxes than most labs ever need.

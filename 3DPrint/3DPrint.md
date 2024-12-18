@@ -15,7 +15,7 @@ Currently we have four box versions
 - StraightUSBC_1DB9.stl
 - StraightUSBC_2DB9.stl
 
-and two overlap files
+and two optional overlap files
 - CuraOverlapSolids_OneDB9.stl
 - CuraOvewrlapSolids_TwoDB9.stl
 
@@ -43,6 +43,9 @@ and [another I like better](https://www.amazon.com/Actual-Silicone-Durometer-Thi
 
 The overlap files are optional, but I prefer to use them for making strong boxes with less material.
 The idea is to allow the slicer to hollow the walls, but not at the corners and around key connectors.
+If the process doesn't appeal to you another option is to simply turn off hollowing (set a high wall thickness)
+and you will get a strong box at the expense of a little more time and material.
+
 Most slicing software will support this in some form, but here is a rough outline of how it works in
 CURA 5.7.
 - Import one box file and a matching overlap file.
@@ -50,7 +53,7 @@ CURA 5.7.
 - Select the matching file in CURA
 - Click the Support Blocker icon at the left
 - Click Per model settings and choose modify settings for overlaps at the top
-- Set the wall thicknessa and top/bottom thickness to 3 or more
+- Set the wall thicknessa and top/bottom thickness to 3mm or more
 - Choose your preferred slicing settings.  I use 0.84 mm walls and top with an 0.42 mm bottom.  Cubic subdivision infill at 20% works for me.
 
 Again, your equipment and expertise should be applied appropriately.  There are dozens or hundreds
